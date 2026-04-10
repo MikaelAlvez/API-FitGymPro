@@ -5,13 +5,17 @@ import {
   logoutController,
   meController,
 } from './auth.controller'
+import { registerStudentController } from './register.controller'
 
 export async function authRoutes(app: FastifyInstance) {
-  //Públicas
+  // Cadastro
+  app.post('/register/student', registerStudentController)
+
+  // Públicas
   app.post('/login',   loginController)
   app.post('/refresh', refreshController)
   app.post('/logout',  logoutController)
 
-  //Protegida — retorna dados do usuário logado
+  // Protegida
   app.get('/me', { preHandler: [app.authenticate] }, meController)
 }
