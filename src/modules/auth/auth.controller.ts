@@ -113,3 +113,24 @@ export async function checkEmailController(
 
   return reply.status(200).send({ available: !existing })
 }
+
+export async function checkCpfController(
+  req: FastifyRequest<{ Body: { cpf: string } }>,
+  reply: FastifyReply,
+) {
+  const { cpf } = req.body
+
+  if (!cpf) {
+    return reply.status(400).send({ message: 'CPF é obrigatório.' })
+  }
+
+  // Remove máscara antes de buscar
+  const digits = cpf.replace(/\D/g, '')
+
+  const existing = await req.server.prisma.user.findUnique({
+    where:  { cpf: digits },
+    select: { id: true },
+  })
+
+  return reply.status(200).send({ available: !existing })
+}
