@@ -5,11 +5,12 @@ import {
   logoutController,
   meController,
 } from './auth.controller'
-import { registerStudentController } from './register.controller'
+import { registerStudentController, registerPersonalController } from './register.controller'
 
 export async function authRoutes(app: FastifyInstance) {
   // Cadastro
-  app.post('/register/student', registerStudentController)
+  app.post('/register/student',  registerStudentController)
+  app.post('/register/personal', registerPersonalController)
 
   // Públicas
   app.post('/login',   loginController)
