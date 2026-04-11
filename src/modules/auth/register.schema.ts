@@ -3,6 +3,7 @@ import { z } from 'zod'
 // ─── Shared ──────────────────────────────────
 const baseUserSchema = z.object({
   name:     z.string({ message: 'Nome é obrigatório' }).min(3, 'Nome deve ter ao menos 3 caracteres'),
+  cpf:      z.string({ message: 'CPF é obrigatório' }).min(11, 'CPF inválido'),
   email:    z.string({ message: 'E-mail é obrigatório' }).email('E-mail inválido'),
   phone:    z.string({ message: 'Telefone é obrigatório' }).min(10, 'Telefone inválido'),
   password: z.string({ message: 'Senha é obrigatória' }).min(6, 'Mínimo 6 caracteres'),

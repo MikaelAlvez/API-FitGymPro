@@ -15,6 +15,7 @@ async function main() {
     create: {
       name:     'Adm Personal',
       email:    'admPersonal@fitgym.com',
+      cpf:      '529.982.247-25',
       phone:    '11999990001',
       password: await hash('123456'),
       role:     'PERSONAL',
@@ -40,11 +41,12 @@ async function main() {
     where:  { email: 'AdmAluno@fitgym.com' },
     update: {},
     create: {
-      name:      'Adm Aluno',
-      email:     'AdmAluno@fitgym.com',
-      phone:     '11999990002',
-      password:  await hash('123456'),
-      role:      'STUDENT',
+      name:       'Adm Aluno',
+      email:      'AdmAluno@fitgym.com',
+      cpf:        '275.484.779-08',
+      phone:      '11999990002',
+      password:   await hash('123456'),
+      role:       'STUDENT',
       personalId: personal.id,
       studentProfile: {
         create: {
@@ -63,7 +65,7 @@ async function main() {
     },
   })
 
-  console.log('   Seed concluído!')
+  console.log('✅ Seed concluído!')
   console.log(`   Personal → ${personal.email} | senha: 123456`)
   console.log(`   Aluno    → ${student.email}  | senha: 123456`)
 }

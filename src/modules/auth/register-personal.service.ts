@@ -8,7 +8,7 @@ export async function registerPersonalService(
   input: RegisterPersonalInput,
 ) {
   const {
-    name, email, phone, password,
+    name, email, cpf, phone, password,
     sex, birthDate, weight, height,
     course, university, educationLevel, cref,
     classFormat, availableDays,
@@ -18,6 +18,12 @@ export async function registerPersonalService(
   const existing = await app.prisma.user.findUnique({ where: { email } })
   if (existing) {
     throw { statusCode: 409, message: 'E-mail já cadastrado.' }
+  }
+
+  //Verifica CPF duplicado
+  const existingCpf = await app.prisma.user.findUnique({ where: { cpf } })
+  if (existingCpf) {
+    throw { statusCode: 409, message: 'CPF já cadastrado.' }
   }
 
   //Verifica CREF duplicado
@@ -36,6 +42,7 @@ export async function registerPersonalService(
     data: {
       name,
       email,
+      cpf,
       phone,
       password: hashedPassword,
       role:     'PERSONAL',

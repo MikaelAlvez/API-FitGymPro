@@ -7,18 +7,24 @@ export async function registerStudentService(
   input: RegisterStudentInput,
 ) {
   const {
-    name, email, phone, password, personalId,
+    name, email, cpf, phone, password, personalId,
     sex, birthDate, weight, height, goal, focusMuscle,
     experience, gymType, cardio, trainingDays,
   } = input
 
-  //Verifica e-mail duplicado
+  // 1. Verifica e-mail duplicado
   const existing = await app.prisma.user.findUnique({ where: { email } })
   if (existing) {
     throw { statusCode: 409, message: 'E-mail já cadastrado.' }
   }
 
-  //Valida se o personal existe (quando informado)
+  // 2. Verifica CPF duplicado
+  const existingCpf = await app.prisma.user.findUnique({ where: { cpf } })
+  if (existingCpf) {
+    throw { statusCode: 409, message: 'CPF já cadastrado.' }
+  }
+
+  // 2. Valida se o personal existe (quando informado)
   if (personalId) {
     const personal = await app.prisma.user.findUnique({
       where: { id: personalId },
@@ -28,14 +34,15 @@ export async function registerStudentService(
     }
   }
 
-  //Hash da senha
+  // 3. Hash da senha
   const hashedPassword = await bcrypt.hash(password, 10)
 
-  //Cria usuário + perfil em uma transação
+  // 4. Cria usuário + perfil em uma transação
   const user = await app.prisma.user.create({
     data: {
       name,
       email,
+      cpf,
       phone,
       password:   hashedPassword,
       role:       'STUDENT',
@@ -72,7 +79,7 @@ export async function registerStudentService(
     },
   })
 
-  //Gera tokens
+  // 5. Gera tokens
   const accessToken = app.jwt.sign({
     sub:   user.id,
     email: user.email,
