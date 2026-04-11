@@ -79,11 +79,11 @@ export async function meProfileController(req: FastifyRequest, reply: FastifyRep
   const user = await req.server.prisma.user.findUnique({
     where:  { id: userId },
     select: {
-      id:     true,
-      name:   true,
-      email:  true,
-      role:   true,
-      avatar: true,
+      id:              true,
+      name:            true,
+      email:           true,
+      role:            true,
+      avatar:          true,
       studentProfile:  role === 'STUDENT'  ? true : false,
       personalProfile: role === 'PERSONAL' ? true : false,
     },
@@ -94,4 +94,22 @@ export async function meProfileController(req: FastifyRequest, reply: FastifyRep
   }
 
   return reply.status(200).send(user)
+}
+
+export async function checkEmailController(
+  req: FastifyRequest<{ Body: { email: string } }>,
+  reply: FastifyReply,
+) {
+  const { email } = req.body
+
+  if (!email) {
+    return reply.status(400).send({ message: 'E-mail é obrigatório.' })
+  }
+
+  const existing = await req.server.prisma.user.findUnique({
+    where:  { email },
+    select: { id: true },
+  })
+
+  return reply.status(200).send({ available: !existing })
 }
