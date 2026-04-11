@@ -37,12 +37,15 @@ export async function registerPersonalService(
   //Hash da senha
   const hashedPassword = await bcrypt.hash(password, 10)
 
+  //Normaliza CPF — salva sempre sem máscara
+  const cpfDigits = cpf.replace(/\D/g, '')
+
   //Cria usuário + perfil em uma transação
   const user = await app.prisma.user.create({
     data: {
       name,
       email,
-      cpf,
+      cpf: cpfDigits,
       phone,
       password: hashedPassword,
       role:     'PERSONAL',
