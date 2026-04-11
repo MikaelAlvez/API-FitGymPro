@@ -124,11 +124,16 @@ export async function checkCpfController(
     return reply.status(400).send({ message: 'CPF é obrigatório.' })
   }
 
-  // Remove máscara antes de buscar
+  // Remove máscara para buscar — testa com e sem máscara
   const digits = cpf.replace(/\D/g, '')
 
-  const existing = await req.server.prisma.user.findUnique({
-    where:  { cpf: digits },
+  const existing = await req.server.prisma.user.findFirst({
+    where: {
+      OR: [
+        { cpf: cpf },      // com máscara ex: 000.000.000-00
+        { cpf: digits },   // sem máscara ex: 00000000000
+      ],
+    },
     select: { id: true },
   })
 
