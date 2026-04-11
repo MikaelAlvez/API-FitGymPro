@@ -71,3 +71,27 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
 
   return reply.status(200).send(user)
 }
+
+export async function meProfileController(req: FastifyRequest, reply: FastifyReply) {
+  const userId = req.user.sub
+  const role   = req.user.role
+
+  const user = await req.server.prisma.user.findUnique({
+    where:  { id: userId },
+    select: {
+      id:     true,
+      name:   true,
+      email:  true,
+      role:   true,
+      avatar: true,
+      studentProfile:  role === 'STUDENT'  ? true : false,
+      personalProfile: role === 'PERSONAL' ? true : false,
+    },
+  })
+
+  if (!user) {
+    return reply.status(404).send({ message: 'Usuário não encontrado.' })
+  }
+
+  return reply.status(200).send(user)
+}

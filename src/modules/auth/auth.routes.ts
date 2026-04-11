@@ -4,6 +4,7 @@ import {
   refreshController,
   logoutController,
   meController,
+  meProfileController,
 } from './auth.controller'
 import { registerStudentController, registerPersonalController } from './register.controller'
 
@@ -17,6 +18,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/refresh', refreshController)
   app.post('/logout',  logoutController)
 
-  // Protegida
-  app.get('/me', { preHandler: [app.authenticate] }, meController)
+  // Protegidas
+  app.get('/me',         { preHandler: [app.authenticate] }, meController)
+  app.get('/me/profile', { preHandler: [app.authenticate] }, meProfileController)
 }
