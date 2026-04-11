@@ -9,6 +9,7 @@ export async function registerPersonalService(
 ) {
   const {
     name, email, cpf, phone, password,
+    cep, street, number, neighborhood, city, state,
     sex, birthDate, weight, height,
     course, university, educationLevel, cref,
     classFormat, availableDays,
@@ -49,6 +50,12 @@ export async function registerPersonalService(
       phone,
       password: hashedPassword,
       role:     'PERSONAL',
+      cep,
+      street,
+      number,
+      neighborhood,
+      city,
+      state,
       personalProfile: {
         create: {
           sex,

@@ -7,42 +7,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  PERSONAL
+  STUDENT
+}
+
 model User {
-  id              String           @id @default(uuid())
-  name            String
-  email           String           @unique
-  cpf             String           @unique
-  phone           String
-  password        String
-  role            Role
-  avatar          String?
-  active          Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  personalId      String?
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  cpf       String   @unique
+  phone     String
+  password  String
+  role      Role
+  avatar    String?
+  active    Boolean  @default(true)
+
+  // Endereço
+  cep          String?
+  street       String?
+  number       String?
+  neighborhood String?
+  city         String?
+  state        String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação: personal tem alunos, aluno tem um personal
+  personalId String?
+  personal   User?   @relation("PersonalStudents", fields: [personalId], references: [id])
+  students   User[]  @relation("PersonalStudents")
+
+  // Perfil do aluno
+  studentProfile StudentProfile?
+
+  // Perfil do personal
   personalProfile PersonalProfile?
-  refreshTokens   RefreshToken[]
-  studentProfile  StudentProfile?
-  personal        User?            @relation("PersonalStudents", fields: [personalId], references: [id])
-  students        User[]           @relation("PersonalStudents")
+
+  // Refresh tokens
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
 
 model StudentProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  sex          String
-  birthDate    String
-  weight       String
-  height       String
-  goal         String
-  focusMuscle  String
-  experience   String
-  gymType      String
-  cardio       String
-  trainingDays String[]
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sex            String
+  birthDate      String
+  weight         String
+  height         String
+  goal           String
+  focusMuscle    String
+  experience     String
+  gymType        String
+  cardio         String
+  trainingDays   String[]
 
   @@map("student_profiles")
 }
@@ -50,6 +72,8 @@ model StudentProfile {
 model PersonalProfile {
   id             String   @id @default(uuid())
   userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   sex            String
   birthDate      String
   weight         String
@@ -60,7 +84,6 @@ model PersonalProfile {
   cref           String
   classFormat    String
   availableDays  String[]
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("personal_profiles")
 }
@@ -69,14 +92,9 @@ model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
-}
-
-enum Role {
-  PERSONAL
-  STUDENT
 }

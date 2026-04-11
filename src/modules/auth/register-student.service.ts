@@ -8,6 +8,7 @@ export async function registerStudentService(
 ) {
   const {
     name, email, cpf, phone, password, personalId,
+    cep, street, number, neighborhood, city, state,
     sex, birthDate, weight, height, goal, focusMuscle,
     experience, gymType, cardio, trainingDays,
   } = input
@@ -47,9 +48,15 @@ export async function registerStudentService(
       email,
       cpf: cpfDigits,
       phone,
-      password:   hashedPassword,
-      role:       'STUDENT',
-      personalId: personalId ?? null,
+      password:    hashedPassword,
+      role:        'STUDENT',
+      personalId:  personalId ?? null,
+      cep,
+      street,
+      number,
+      neighborhood,
+      city,
+      state,
       studentProfile: {
         create: {
           sex,

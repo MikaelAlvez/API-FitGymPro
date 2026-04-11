@@ -2,11 +2,18 @@ import { z } from 'zod'
 
 // ─── Shared ──────────────────────────────────
 const baseUserSchema = z.object({
-  name:     z.string({ message: 'Nome é obrigatório' }).min(3, 'Nome deve ter ao menos 3 caracteres'),
-  cpf:      z.string({ message: 'CPF é obrigatório' }).min(11, 'CPF inválido'),
-  email:    z.string({ message: 'E-mail é obrigatório' }).email('E-mail inválido'),
-  phone:    z.string({ message: 'Telefone é obrigatório' }).min(10, 'Telefone inválido'),
-  password: z.string({ message: 'Senha é obrigatória' }).min(6, 'Mínimo 6 caracteres'),
+  name:         z.string({ message: 'Nome é obrigatório' }).min(3),
+  cpf:          z.string({ message: 'CPF é obrigatório' }).min(11),
+  email:        z.string({ message: 'E-mail é obrigatório' }).email(),
+  phone:        z.string({ message: 'Telefone é obrigatório' }).min(10),
+  password:     z.string({ message: 'Senha é obrigatória' }).min(6),
+  // Endereço
+  cep:          z.string().optional(),
+  street:       z.string().optional(),
+  number:       z.string().optional(),
+  neighborhood: z.string().optional(),
+  city:         z.string().optional(),
+  state:        z.string().optional(),
 })
 
 // ─── Student ─────────────────────────────────
