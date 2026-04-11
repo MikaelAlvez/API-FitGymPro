@@ -15,7 +15,7 @@ async function main() {
     create: {
       name:     'Adm Personal',
       email:    'admPersonal@fitgym.com',
-      cpf:      '529.982.247-25',
+      cpf:      '52998224725',  // sem máscara
       phone:    '11999990001',
       password: await hash('123456'),
       role:     'PERSONAL',
@@ -43,7 +43,7 @@ async function main() {
     create: {
       name:       'Adm Aluno',
       email:      'AdmAluno@fitgym.com',
-      cpf:        '275.484.779-08',
+      cpf:        '27548477908',  // sem máscara
       phone:      '11999990002',
       password:   await hash('123456'),
       role:       'STUDENT',
