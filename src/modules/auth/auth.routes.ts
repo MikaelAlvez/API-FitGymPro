@@ -5,6 +5,7 @@ import {
   logoutController,
   meController,
   meProfileController,
+  checkEmailController,
 } from './auth.controller'
 import { registerStudentController, registerPersonalController } from './register.controller'
 
@@ -12,6 +13,9 @@ export async function authRoutes(app: FastifyInstance) {
   // Cadastro
   app.post('/register/student',  registerStudentController)
   app.post('/register/personal', registerPersonalController)
+
+  // Verificações
+  app.post('/check-email', checkEmailController)
 
   // Públicas
   app.post('/login',   loginController)
