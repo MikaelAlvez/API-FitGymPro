@@ -12,7 +12,6 @@ const baseUserSchema = z.object({
 export const registerStudentSchema = baseUserSchema.extend({
   role: z.literal('STUDENT'),
 
-  //Perfil corporal
   sex:          z.string({ message: 'Sexo é obrigatório' }).min(1),
   birthDate:    z.string({ message: 'Data de nascimento é obrigatória' }).min(1),
   weight:       z.string({ message: 'Peso é obrigatório' }).min(1),
@@ -20,7 +19,6 @@ export const registerStudentSchema = baseUserSchema.extend({
   goal:         z.string({ message: 'Objetivo é obrigatório' }).min(1),
   focusMuscle:  z.string({ message: 'Músculo foco é obrigatório' }).min(1),
 
-  //Preferências de treino
   experience:   z.enum(['beginner', 'intermediate', 'advanced'], {
     message: 'Nível de experiência é obrigatório',
   }),
@@ -34,8 +32,29 @@ export const registerStudentSchema = baseUserSchema.extend({
     z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'])
   ).min(1, 'Selecione ao menos um dia'),
 
-  //Opcional — vincula ao personal no cadastro
   personalId: z.string().uuid('ID do personal inválido').optional(),
 })
 
-export type RegisterStudentInput = z.infer<typeof registerStudentSchema>
+// ─── Personal ────────────────────────────────
+export const registerPersonalSchema = baseUserSchema.extend({
+  role: z.literal('PERSONAL'),
+
+  sex:            z.string({ message: 'Sexo é obrigatório' }).min(1),
+  birthDate:      z.string({ message: 'Data de nascimento é obrigatória' }).min(1),
+  weight:         z.string({ message: 'Peso é obrigatório' }).min(1),
+  height:         z.string({ message: 'Altura é obrigatória' }).min(1),
+  course:         z.string({ message: 'Curso é obrigatório' }).min(3, 'Informe o curso'),
+  university:     z.string({ message: 'Universidade é obrigatória' }).min(3, 'Informe a universidade'),
+  educationLevel: z.string({ message: 'Nível de formação é obrigatório' }).min(1),
+  cref:           z.string({ message: 'CREF é obrigatório' }).min(3, 'CREF inválido'),
+
+  classFormat:   z.enum(['presential', 'online', 'hybrid'], {
+    message: 'Formato das aulas é obrigatório',
+  }),
+  availableDays: z.array(
+    z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'])
+  ).min(1, 'Selecione ao menos um dia disponível'),
+})
+
+export type RegisterStudentInput  = z.infer<typeof registerStudentSchema>
+export type RegisterPersonalInput = z.infer<typeof registerPersonalSchema>
