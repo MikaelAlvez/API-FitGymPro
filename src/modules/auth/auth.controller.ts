@@ -62,7 +62,22 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
 
   const user = await req.server.prisma.user.findUnique({
     where:  { id: userId },
-    select: { id: true, name: true, email: true, role: true, avatar: true },
+    select: {
+      id:           true,
+      name:         true,
+      email:        true,
+      role:         true,
+      avatar:       true,
+      phone:        true,
+      sex:          true,
+      birthDate:    true,
+      cep:          true,
+      street:       true,
+      number:       true,
+      neighborhood: true,
+      city:         true,
+      state:        true,
+    },
   })
 
   if (!user) {
