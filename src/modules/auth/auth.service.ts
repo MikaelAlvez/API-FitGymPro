@@ -6,17 +6,26 @@ import type { LoginInput } from './auth.schema'
 export async function loginService(app: FastifyInstance, input: LoginInput) {
   const { email, password } = input
 
-  //Busca usuário
+  // 1. Busca usuário com todos os campos do perfil
   const user = await app.prisma.user.findUnique({
     where:  { email },
     select: {
-      id:       true,
-      name:     true,
-      email:    true,
-      role:     true,
-      avatar:   true,
-      active:   true,
-      password: true,
+      id:           true,
+      name:         true,
+      email:        true,
+      role:         true,
+      avatar:       true,
+      phone:        true,
+      sex:          true,
+      birthDate:    true,
+      cep:          true,
+      street:       true,
+      number:       true,
+      neighborhood: true,
+      city:         true,
+      state:        true,
+      active:       true,
+      password:     true,
     },
   })
 
@@ -24,20 +33,20 @@ export async function loginService(app: FastifyInstance, input: LoginInput) {
     throw { statusCode: 401, message: 'E-mail ou senha inválidos.' }
   }
 
-  //Valida senha
+  // 2. Valida senha
   const passwordMatch = await bcrypt.compare(password, user.password)
   if (!passwordMatch) {
     throw { statusCode: 401, message: 'E-mail ou senha inválidos.' }
   }
 
-  //Gera access token
+  // 3. Gera access token
   const accessToken = app.jwt.sign({
     sub:   user.id,
     email: user.email,
     role:  user.role,
   })
 
-  //Gera refresh token e persiste no banco
+  // 4. Gera refresh token e persiste no banco
   const refreshToken = randomUUID()
   const expiresAt    = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30) // 30 dias
@@ -50,7 +59,7 @@ export async function loginService(app: FastifyInstance, input: LoginInput) {
     },
   })
 
-  //Retorna dados sem a senha
+  // 5. Retorna dados sem a senha
   const { password: _, ...userWithoutPassword } = user
 
   return {
@@ -61,7 +70,7 @@ export async function loginService(app: FastifyInstance, input: LoginInput) {
 }
 
 export async function refreshTokenService(app: FastifyInstance, token: string) {
-  //Busca token no banco
+  // 1. Busca token no banco
   const stored = await app.prisma.refreshToken.findUnique({
     where:   { token },
     include: { user: { select: { id: true, email: true, role: true, active: true } } },
@@ -71,10 +80,10 @@ export async function refreshTokenService(app: FastifyInstance, token: string) {
     throw { statusCode: 401, message: 'Refresh token inválido ou expirado.' }
   }
 
-  //Revoga o token usado (rotação de refresh token)
+  // 2. Revoga o token usado (rotação de refresh token)
   await app.prisma.refreshToken.delete({ where: { token } })
 
-  //Gera novo par de tokens
+  // 3. Gera novo par de tokens
   const accessToken = app.jwt.sign({
     sub:   stored.user.id,
     email: stored.user.email,
