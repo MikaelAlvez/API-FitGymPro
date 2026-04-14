@@ -1,20 +1,17 @@
 import 'dotenv/config'
-import Fastify       from 'fastify'
-import staticFiles   from '@fastify/static'
-import path          from 'path'
-import prismaPlugin  from './plugins/prisma'
-import jwtPlugin     from './plugins/jwt'
+import Fastify         from 'fastify'
+import path            from 'path'
+import prismaPlugin    from './plugins/prisma'
+import jwtPlugin       from './plugins/jwt'
 import multipartPlugin from './plugins/multipart'
 import { authRoutes }   from './modules/auth/auth.routes'
 import { uploadRoutes } from './modules/upload/upload.routes'
+import { userRoutes }   from './modules/user/user.routes'
 
-const app = Fastify({
-  logger: {
-    transport: process.env.NODE_ENV === 'development'
-      ? { target: 'pino-pretty', options: { colorize: true } }
-      : undefined,
-  },
-})
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const staticFiles = require('@fastify/static')
+
+const app = Fastify({ logger: true })
 
 // ─── Plugins ─────────────────────────────────
 app.register(prismaPlugin)
@@ -30,6 +27,7 @@ app.register(staticFiles, {
 // ─── Rotas ───────────────────────────────────
 app.register(authRoutes,   { prefix: '/auth' })
 app.register(uploadRoutes)
+app.register(userRoutes)
 
 // Health check
 app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
