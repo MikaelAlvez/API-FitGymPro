@@ -23,6 +23,10 @@ model User {
   avatar    String?
   active    Boolean  @default(true)
 
+  // Dados pessoais
+  sex       String?
+  birthDate String?
+
   // Endereço
   cep          String?
   street       String?
