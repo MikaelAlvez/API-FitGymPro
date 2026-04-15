@@ -67,6 +67,7 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
       id:           true,
       name:         true,
       email:        true,
+      cpf:          true,  
       role:         true,
       avatar:       true,
       phone:        true,
@@ -89,7 +90,6 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
     return reply.status(404).send({ message: 'Usuário não encontrado.' })
   }
 
-  // ✅ Achata sex e birthDate do perfil para o nível raiz
   const { studentProfile, personalProfile, ...base } = user
   const profile = studentProfile ?? personalProfile ?? {}
 

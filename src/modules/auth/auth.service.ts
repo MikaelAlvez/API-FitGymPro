@@ -7,36 +7,31 @@ export async function loginService(app: FastifyInstance, input: LoginInput) {
   const { email, password } = input
 
   const user = await app.prisma.user.findUnique({
-    where:  { email },
-    select: {
-      id:           true,
-      name:         true,
-      email:        true,
-      role:         true,
-      avatar:       true,
-      phone:        true,
-      cep:          true,
-      street:       true,
-      number:       true,
-      neighborhood: true,
-      city:         true,
-      state:        true,
-      active:       true,
-      password:     true,
-      studentProfile: {
-        select: {
-          sex:       true,
-          birthDate: true,
-        },
-      },
-      personalProfile: {
-        select: {
-          sex:       true,
-          birthDate: true,
-        },
-      },
+  where:  { email },
+  select: {
+    id:           true,
+    name:         true,
+    email:        true,
+    cpf:          true,  
+    role:         true,
+    avatar:       true,
+    phone:        true,
+    cep:          true,
+    street:       true,
+    number:       true,
+    neighborhood: true,
+    city:         true,
+    state:        true,
+    active:       true,
+    password:     true,
+    studentProfile: {
+      select: { sex: true, birthDate: true },
     },
-  })
+    personalProfile: {
+      select: { sex: true, birthDate: true },
+    },
+  },
+})
 
   if (!user || !user.active) {
     throw { statusCode: 401, message: 'E-mail ou senha inválidos.' }
