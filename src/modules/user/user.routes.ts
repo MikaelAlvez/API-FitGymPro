@@ -17,6 +17,12 @@ const updateProfileSchema = z.object({
   state:        z.string().optional(),
 })
 
+// Schema para métricas do aluno
+const updateStudentMetricsSchema = z.object({
+  weight: z.string().min(1, 'Peso obrigatório'),
+  height: z.string().min(1, 'Altura obrigatória'),
+})
+
 async function updateProfileController(req: FastifyRequest, reply: FastifyReply) {
   const parsed = updateProfileSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -38,6 +44,7 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
       id:           true,
       name:         true,
       email:        true,
+      cpf:          true,
       phone:        true,
       role:         true,
       avatar:       true,
@@ -57,15 +64,9 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
     }
 
     if (role === 'STUDENT') {
-      await req.server.prisma.studentProfile.update({
-        where: { userId },
-        data:  profileData,
-      })
+      await req.server.prisma.studentProfile.update({ where: { userId }, data: profileData })
     } else if (role === 'PERSONAL') {
-      await req.server.prisma.personalProfile.update({
-        where: { userId },
-        data:  profileData,
-      })
+      await req.server.prisma.personalProfile.update({ where: { userId }, data: profileData })
     }
   }
 
@@ -82,10 +83,53 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(200).send({ ...user, ...profile })
 }
 
+// Atualizar peso e altura
+async function updateStudentMetricsController(req: FastifyRequest, reply: FastifyReply) {
+  const parsed = updateStudentMetricsSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return reply.status(400).send({
+      message: 'Dados inválidos.',
+      errors:  parsed.error.flatten().fieldErrors,
+    })
+  }
+
+  const userId = req.user.sub
+
+  // Garante que é aluno
+  if (req.user.role !== 'STUDENT') {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+
+  const updated = await req.server.prisma.studentProfile.update({
+    where:  { userId },
+    data:   { weight: parsed.data.weight, height: parsed.data.height },
+    select: {
+      weight:       true,
+      height:       true,
+      goal:         true,
+      focusMuscle:  true,
+      experience:   true,
+      gymType:      true,
+      cardio:       true,
+      trainingDays: true,
+      sex:          true,
+      birthDate:    true,
+    },
+  })
+
+  return reply.status(200).send({ studentProfile: updated })
+}
+
 export async function userRoutes(app: FastifyInstance) {
   app.put(
     '/user/profile',
     { preHandler: [app.authenticate] },
     updateProfileController,
+  )
+
+  app.put(
+    '/user/student-metrics',
+    { preHandler: [app.authenticate] },
+    updateStudentMetricsController,
   )
 }

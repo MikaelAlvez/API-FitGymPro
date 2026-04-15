@@ -60,8 +60,8 @@ export async function registerStudentService(
       state,
       studentProfile: {
         create: {
-          sex,        // ✅ movido para StudentProfile
-          birthDate,  // ✅ movido para StudentProfile
+          sex,        
+          birthDate, 
           weight,
           height,
           goal,
