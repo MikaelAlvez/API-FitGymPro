@@ -8,24 +8,25 @@ export async function registerStudentService(
 ) {
   const {
     name, email, cpf, phone, password, personalId,
+    sex, birthDate,
     cep, street, number, neighborhood, city, state,
-    sex, birthDate, weight, height, goal, focusMuscle,
+    weight, height, goal, focusMuscle,
     experience, gymType, cardio, trainingDays,
   } = input
 
-  //Verifica e-mail duplicado
+  // Verifica e-mail duplicado
   const existing = await app.prisma.user.findUnique({ where: { email } })
   if (existing) {
     throw { statusCode: 409, message: 'E-mail já cadastrado.' }
   }
 
-  //Verifica CPF duplicado
+  // Verifica CPF duplicado
   const existingCpf = await app.prisma.user.findUnique({ where: { cpf } })
   if (existingCpf) {
     throw { statusCode: 409, message: 'CPF já cadastrado.' }
   }
 
-  //Valida se o personal existe (quando informado)
+  // Valida se o personal existe (quando informado)
   if (personalId) {
     const personal = await app.prisma.user.findUnique({
       where: { id: personalId },
@@ -35,22 +36,22 @@ export async function registerStudentService(
     }
   }
 
-  //Hash da senha
+  // Hash da senha
   const hashedPassword = await bcrypt.hash(password, 10)
 
   // Normaliza CPF — salva sempre sem máscara
   const cpfDigits = cpf.replace(/\D/g, '')
 
-  //Cria usuário + perfil em uma transação
+  // Cria usuário + perfil em uma transação
   const user = await app.prisma.user.create({
     data: {
       name,
       email,
       cpf: cpfDigits,
       phone,
-      password:    hashedPassword,
-      role:        'STUDENT',
-      personalId:  personalId ?? null,
+      password:   hashedPassword,
+      role:       'STUDENT',
+      personalId: personalId ?? null,
       cep,
       street,
       number,
@@ -59,8 +60,8 @@ export async function registerStudentService(
       state,
       studentProfile: {
         create: {
-          sex,
-          birthDate,
+          sex,        // ✅ movido para StudentProfile
+          birthDate,  // ✅ movido para StudentProfile
           weight,
           height,
           goal,
@@ -73,14 +74,23 @@ export async function registerStudentService(
       },
     },
     select: {
-      id:        true,
-      name:      true,
-      email:     true,
-      phone:     true,
-      role:      true,
-      createdAt: true,
+      id:           true,
+      name:         true,
+      email:        true,
+      phone:        true,
+      role:         true,
+      avatar:       true,
+      cep:          true,
+      street:       true,
+      number:       true,
+      neighborhood: true,
+      city:         true,
+      state:        true,
+      createdAt:    true,
       studentProfile: {
         select: {
+          sex:          true,
+          birthDate:    true,
           goal:         true,
           experience:   true,
           trainingDays: true,
@@ -89,7 +99,7 @@ export async function registerStudentService(
     },
   })
 
-  //Gera tokens
+  // Gera tokens
   const accessToken = app.jwt.sign({
     sub:   user.id,
     email: user.email,
