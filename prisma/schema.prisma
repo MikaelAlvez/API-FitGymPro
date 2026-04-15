@@ -39,7 +39,7 @@ model User {
   personal   User?   @relation("PersonalStudents", fields: [personalId], references: [id])
   students   User[]  @relation("PersonalStudents")
 
-  // Perfis
+  // Perfis[]
   studentProfile  StudentProfile?
   personalProfile PersonalProfile?
 

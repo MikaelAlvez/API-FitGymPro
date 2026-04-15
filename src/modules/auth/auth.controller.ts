@@ -59,6 +59,7 @@ export async function logoutController(req: FastifyRequest, reply: FastifyReply)
 
 export async function meController(req: FastifyRequest, reply: FastifyReply) {
   const userId = req.user.sub
+  const role   = req.user.role
 
   const user = await req.server.prisma.user.findUnique({
     where:  { id: userId },
@@ -69,14 +70,18 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
       role:         true,
       avatar:       true,
       phone:        true,
-      sex:          true,
-      birthDate:    true,
       cep:          true,
       street:       true,
       number:       true,
       neighborhood: true,
       city:         true,
       state:        true,
+      studentProfile: role === 'STUDENT' ? {
+        select: { sex: true, birthDate: true },
+      } : false,
+      personalProfile: role === 'PERSONAL' ? {
+        select: { sex: true, birthDate: true },
+      } : false,
     },
   })
 
@@ -84,7 +89,11 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
     return reply.status(404).send({ message: 'Usuário não encontrado.' })
   }
 
-  return reply.status(200).send(user)
+  // ✅ Achata sex e birthDate do perfil para o nível raiz
+  const { studentProfile, personalProfile, ...base } = user
+  const profile = studentProfile ?? personalProfile ?? {}
+
+  return reply.status(200).send({ ...base, ...profile })
 }
 
 export async function meProfileController(req: FastifyRequest, reply: FastifyReply) {
@@ -139,14 +148,13 @@ export async function checkCpfController(
     return reply.status(400).send({ message: 'CPF é obrigatório.' })
   }
 
-  // Remove máscara para buscar — testa com e sem máscara
   const digits = cpf.replace(/\D/g, '')
 
   const existing = await req.server.prisma.user.findFirst({
     where: {
       OR: [
-        { cpf: cpf },      // com máscara ex: 000.000.000-00
-        { cpf: digits },   // sem máscara ex: 00000000000
+        { cpf: cpf },
+        { cpf: digits },
       ],
     },
     select: { id: true },
