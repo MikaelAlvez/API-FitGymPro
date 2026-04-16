@@ -4,9 +4,10 @@ import path            from 'path'
 import prismaPlugin    from './plugins/prisma'
 import jwtPlugin       from './plugins/jwt'
 import multipartPlugin from './plugins/multipart'
-import { authRoutes }   from './modules/auth/auth.routes'
-import { uploadRoutes } from './modules/upload/upload.routes'
-import { userRoutes }   from './modules/user/user.routes'
+import { authRoutes }            from './modules/auth/auth.routes'
+import { uploadRoutes }          from './modules/upload/upload.routes'
+import { userRoutes }            from './modules/user/user.routes'
+import { personalRequestRoutes } from './modules/personal-request/personal-request.routes'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const staticFiles = require('@fastify/static')
@@ -18,18 +19,17 @@ app.register(prismaPlugin)
 app.register(jwtPlugin)
 app.register(multipartPlugin)
 
-// Serve arquivos estáticos (avatares)
 app.register(staticFiles, {
   root:   path.join(__dirname, '..', 'src', 'uploads'),
   prefix: '/uploads/',
 })
 
 // ─── Rotas ───────────────────────────────────
-app.register(authRoutes,   { prefix: '/auth' })
+app.register(authRoutes,            { prefix: '/auth' })
 app.register(uploadRoutes)
 app.register(userRoutes)
+app.register(personalRequestRoutes)
 
-// Health check
 app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 // ─── Start ───────────────────────────────────
