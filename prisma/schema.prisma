@@ -72,11 +72,10 @@ model PersonalProfile {
   id             String   @id @default(uuid())
   userId         String   @unique
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   sex            String
   birthDate      String
-  weight         String
-  height         String
+  weight         String?  
+  height         String?  
   course         String
   university     String
   educationLevel String

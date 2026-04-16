@@ -17,8 +17,7 @@ const updateProfileSchema = z.object({
   state:        z.string().optional(),
 })
 
-// Schema para métricas do aluno
-const updateStudentMetricsSchema = z.object({
+const updateMetricsSchema = z.object({
   weight: z.string().min(1, 'Peso obrigatório'),
   height: z.string().min(1, 'Altura obrigatória'),
 })
@@ -34,7 +33,6 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
 
   const userId = req.user.sub
   const role   = req.user.role
-
   const { sex, birthDate, ...userFields } = parsed.data
 
   const user = await req.server.prisma.user.update({
@@ -62,7 +60,6 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
       ...(sex       !== undefined && { sex }),
       ...(birthDate !== undefined && { birthDate }),
     }
-
     if (role === 'STUDENT') {
       await req.server.prisma.studentProfile.update({ where: { userId }, data: profileData })
     } else if (role === 'PERSONAL') {
@@ -72,20 +69,18 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
 
   const profile = role === 'STUDENT'
     ? await req.server.prisma.studentProfile.findUnique({
-        where:  { userId },
-        select: { sex: true, birthDate: true },
+        where: { userId }, select: { sex: true, birthDate: true },
       })
     : await req.server.prisma.personalProfile.findUnique({
-        where:  { userId },
-        select: { sex: true, birthDate: true },
+        where: { userId }, select: { sex: true, birthDate: true },
       })
 
   return reply.status(200).send({ ...user, ...profile })
 }
 
-// Atualizar peso e altura
-async function updateStudentMetricsController(req: FastifyRequest, reply: FastifyReply) {
-  const parsed = updateStudentMetricsSchema.safeParse(req.body)
+// Controller unificado para métricas (student e personal)
+async function updateMetricsController(req: FastifyRequest, reply: FastifyReply) {
+  const parsed = updateMetricsSchema.safeParse(req.body)
   if (!parsed.success) {
     return reply.status(400).send({
       message: 'Dados inválidos.',
@@ -94,30 +89,37 @@ async function updateStudentMetricsController(req: FastifyRequest, reply: Fastif
   }
 
   const userId = req.user.sub
+  const role   = req.user.role
 
-  // Garante que é aluno
-  if (req.user.role !== 'STUDENT') {
-    return reply.status(403).send({ message: 'Acesso negado.' })
+  if (role === 'STUDENT') {
+    const updated = await req.server.prisma.studentProfile.update({
+      where:  { userId },
+      data:   { weight: parsed.data.weight, height: parsed.data.height },
+      select: {
+        weight: true, height: true, goal: true,
+        focusMuscle: true, experience: true,
+        gymType: true, cardio: true, trainingDays: true,
+        sex: true, birthDate: true,
+      },
+    })
+    return reply.status(200).send({ studentProfile: updated })
   }
 
-  const updated = await req.server.prisma.studentProfile.update({
-    where:  { userId },
-    data:   { weight: parsed.data.weight, height: parsed.data.height },
-    select: {
-      weight:       true,
-      height:       true,
-      goal:         true,
-      focusMuscle:  true,
-      experience:   true,
-      gymType:      true,
-      cardio:       true,
-      trainingDays: true,
-      sex:          true,
-      birthDate:    true,
-    },
-  })
+  if (role === 'PERSONAL') {
+    const updated = await req.server.prisma.personalProfile.update({
+      where:  { userId },
+      data:   { weight: parsed.data.weight, height: parsed.data.height },
+      select: {
+        weight: true, height: true,
+        sex: true, birthDate: true,
+        cref: true, course: true,
+        classFormat: true, availableDays: true,
+      },
+    })
+    return reply.status(200).send({ personalProfile: updated })
+  }
 
-  return reply.status(200).send({ studentProfile: updated })
+  return reply.status(403).send({ message: 'Acesso negado.' })
 }
 
 export async function userRoutes(app: FastifyInstance) {
@@ -127,9 +129,10 @@ export async function userRoutes(app: FastifyInstance) {
     updateProfileController,
   )
 
+  // Rota unificada — funciona para STUDENT e PERSONAL
   app.put(
-    '/user/student-metrics',
+    '/user/metrics',
     { preHandler: [app.authenticate] },
-    updateStudentMetricsController,
+    updateMetricsController,
   )
 }
