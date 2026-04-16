@@ -1,28 +1,23 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
-// ─── GET /personals — lista personais disponíveis ─────
+// ─── GET /personals ───────────────────────────────────
 async function listPersonalsController(req: FastifyRequest, reply: FastifyReply) {
   const personals = await req.server.prisma.user.findMany({
-    where:  { role: 'PERSONAL', active: true },
-    select: {
+    where:   { role: 'PERSONAL', active: true },
+    select:  {
       id:     true,
       name:   true,
       avatar: true,
       city:   true,
       state:  true,
       personalProfile: {
-        select: {
-          cref:        true,
-          classFormat: true,
-          course:      true,
-        },
+        select: { cref: true, classFormat: true, course: true },
       },
     },
     orderBy: { name: 'asc' },
   })
 
-  // Busca status da solicitação do aluno logado para cada personal
   const userId   = req.user.sub
   const requests = await req.server.prisma.personalRequest.findMany({
     where:  { studentId: userId },
@@ -39,7 +34,7 @@ async function listPersonalsController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(200).send(result)
 }
 
-// ─── POST /personal-request — aluno envia solicitação ─
+// ─── POST /personal-request ───────────────────────────
 const sendRequestSchema = z.object({
   personalId: z.string().uuid(),
   message:    z.string().max(300).optional(),
@@ -54,26 +49,22 @@ async function sendRequestController(req: FastifyRequest, reply: FastifyReply) {
     })
   }
 
-  const studentId  = req.user.sub
+  const studentId              = req.user.sub
   const { personalId, message } = parsed.data
 
-  // Garante que é aluno
   if (req.user.role !== 'STUDENT') {
     return reply.status(403).send({ message: 'Apenas alunos podem enviar solicitações.' })
   }
 
-  // Verifica se personal existe
-  const personal = await req.server.prisma.user.findUnique({
-    where: { id: personalId },
-  })
+  const personal = await req.server.prisma.user.findUnique({ where: { id: personalId } })
   if (!personal || personal.role !== 'PERSONAL') {
     return reply.status(404).send({ message: 'Personal não encontrado.' })
   }
 
-  // Verifica se já existe solicitação
   const existing = await req.server.prisma.personalRequest.findUnique({
     where: { studentId_personalId: { studentId, personalId } },
   })
+
   if (existing) {
     if (existing.status === 'PENDING') {
       return reply.status(409).send({ message: 'Você já enviou uma solicitação para este personal.' })
@@ -81,7 +72,6 @@ async function sendRequestController(req: FastifyRequest, reply: FastifyReply) {
     if (existing.status === 'ACCEPTED') {
       return reply.status(409).send({ message: 'Você já está vinculado a este personal.' })
     }
-    // Se foi rejeitado, permite reenviar — atualiza para PENDING
     const updated = await req.server.prisma.personalRequest.update({
       where: { studentId_personalId: { studentId, personalId } },
       data:  { status: 'PENDING', message: message ?? null },
@@ -96,7 +86,7 @@ async function sendRequestController(req: FastifyRequest, reply: FastifyReply) {
   return reply.status(201).send(request)
 }
 
-// ─── GET /personal-requests — personal vê solicitações ─
+// ─── GET /personal-requests ───────────────────────────
 async function listRequestsController(req: FastifyRequest, reply: FastifyReply) {
   if (req.user.role !== 'PERSONAL') {
     return reply.status(403).send({ message: 'Acesso negado.' })
@@ -116,10 +106,7 @@ async function listRequestsController(req: FastifyRequest, reply: FastifyReply) 
           city:   true,
           state:  true,
           studentProfile: {
-            select: {
-              goal:       true,
-              experience: true,
-            },
+            select: { goal: true, experience: true },
           },
         },
       },
@@ -129,7 +116,7 @@ async function listRequestsController(req: FastifyRequest, reply: FastifyReply) 
   return reply.status(200).send(requests)
 }
 
-// ─── PUT /personal-request/:id/accept ─────────────────
+// ─── PUT /personal-request/:id/accept ────────────────
 async function acceptRequestController(req: FastifyRequest, reply: FastifyReply) {
   if (req.user.role !== 'PERSONAL') {
     return reply.status(403).send({ message: 'Acesso negado.' })
@@ -138,9 +125,7 @@ async function acceptRequestController(req: FastifyRequest, reply: FastifyReply)
   const { id }     = req.params as { id: string }
   const personalId = req.user.sub
 
-  const request = await req.server.prisma.personalRequest.findUnique({
-    where: { id },
-  })
+  const request = await req.server.prisma.personalRequest.findUnique({ where: { id } })
 
   if (!request || request.personalId !== personalId) {
     return reply.status(404).send({ message: 'Solicitação não encontrada.' })
@@ -163,33 +148,16 @@ async function acceptRequestController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(200).send({ message: 'Solicitação aceita com sucesso.' })
 }
 
-  // Aceita a solicitação e vincula o aluno ao personal
-  await req.server.prisma.$transaction([
-    req.server.prisma.personalRequest.update({
-      where: { id },
-      data:  { status: 'ACCEPTED' },
-    }),
-    req.server.prisma.user.update({
-      where: { id: request.studentId },
-      data:  { personalId },
-    }),
-  ])
-
-  return reply.status(200).send({ message: 'Solicitação aceita com sucesso.' })
-}
-
-// ─── PUT /personal-request/:id/reject ─────────────────
+// ─── PUT /personal-request/:id/reject ────────────────
 async function rejectRequestController(req: FastifyRequest, reply: FastifyReply) {
   if (req.user.role !== 'PERSONAL') {
     return reply.status(403).send({ message: 'Acesso negado.' })
   }
 
-  const { id }     = req.params as { id: string }  // ✅ cast aqui
+  const { id }     = req.params as { id: string }
   const personalId = req.user.sub
 
-  const request = await req.server.prisma.personalRequest.findUnique({
-    where: { id },
-  })
+  const request = await req.server.prisma.personalRequest.findUnique({ where: { id } })
 
   if (!request || request.personalId !== personalId) {
     return reply.status(404).send({ message: 'Solicitação não encontrada.' })
@@ -206,7 +174,7 @@ async function rejectRequestController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(200).send({ message: 'Solicitação recusada.' })
 }
 
-// ─── GET /personal-request/my-status — aluno vê status ─
+// ─── GET /personal-request/my-status ─────────────────
 async function myRequestStatusController(req: FastifyRequest, reply: FastifyReply) {
   const studentId = req.user.sub
 
@@ -230,34 +198,10 @@ async function myRequestStatusController(req: FastifyRequest, reply: FastifyRepl
 
 // ─── Register routes ──────────────────────────────────
 export async function personalRequestRoutes(app: FastifyInstance) {
-  app.get(
-    '/personals',
-    { preHandler: [app.authenticate] },
-    listPersonalsController,
-  )
-  app.post(
-    '/personal-request',
-    { preHandler: [app.authenticate] },
-    sendRequestController,
-  )
-  app.get(
-    '/personal-requests',
-    { preHandler: [app.authenticate] },
-    listRequestsController,
-  )
-  app.get(
-    '/personal-request/my-status',
-    { preHandler: [app.authenticate] },
-    myRequestStatusController,
-  )
-  app.put(
-    '/personal-request/:id/accept',
-    { preHandler: [app.authenticate] },
-    acceptRequestController,
-  )
-  app.put(
-    '/personal-request/:id/reject',
-    { preHandler: [app.authenticate] },
-    rejectRequestController,
-  )
+  app.get('/personals',                     { preHandler: [app.authenticate] }, listPersonalsController)
+  app.post('/personal-request',             { preHandler: [app.authenticate] }, sendRequestController)
+  app.get('/personal-requests',             { preHandler: [app.authenticate] }, listRequestsController)
+  app.get('/personal-request/my-status',    { preHandler: [app.authenticate] }, myRequestStatusController)
+  app.put('/personal-request/:id/accept',   { preHandler: [app.authenticate] }, acceptRequestController)
+  app.put('/personal-request/:id/reject',   { preHandler: [app.authenticate] }, rejectRequestController)
 }
