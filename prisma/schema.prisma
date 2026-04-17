@@ -46,6 +46,9 @@ model User {
   sentRequests     PersonalRequest[] @relation("StudentRequests")
   receivedRequests PersonalRequest[] @relation("PersonalRequests")
 
+  personalWorkouts Workout[] @relation("PersonalWorkouts")
+  studentWorkouts  Workout[] @relation("StudentWorkouts")
+
   @@map("users")
 }
 
@@ -110,4 +113,33 @@ model PersonalRequest {
 
   @@unique([studentId, personalId])
   @@map("personal_requests")
+}
+
+model Workout {
+  id          String   @id @default(uuid())
+  name        String
+  days        String[]
+  notes       String?
+  personalId  String
+  studentId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personal  User       @relation("PersonalWorkouts", fields: [personalId], references: [id], onDelete: Cascade)
+  student   User       @relation("StudentWorkouts",  fields: [studentId],  references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@map("workouts")
+}
+
+model Exercise {
+  id         String  @id @default(uuid())
+  name       String
+  sets       String
+  reps       String
+  order      Int     @default(0)
+  workoutId  String
+  workout    Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@map("exercises")
 }
