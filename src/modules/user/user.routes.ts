@@ -136,23 +136,32 @@ export async function userRoutes(app: FastifyInstance) {
     updateMetricsController,
   )
   app.get(
-    '/user/my-students',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      if (req.user.role !== 'PERSONAL') {
-        return reply.status(403).send({ message: 'Acesso negado.' })
-      }
-      const students = await req.server.prisma.user.findMany({
-        where:   { personalId: req.user.sub, active: true },
-        select:  {
-          id:     true,
-          name:   true,
-          avatar: true,
-          studentProfile: { select: { goal: true } },
+  '/user/my-students',
+  { preHandler: [app.authenticate] },
+  async (req, reply) => {
+    if (req.user.role !== 'PERSONAL') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+    const students = await req.server.prisma.user.findMany({
+      where:   { personalId: req.user.sub, active: true },
+      select:  {
+        id:     true,
+        name:   true,
+        avatar: true,
+        city:   true,  
+        state:  true,   
+        studentProfile: {
+          select: {
+            goal:       true,
+            experience: true,
+            weight:     true,
+            height:     true,
+          },
         },
-        orderBy: { name: 'asc' },
-      })
-      return reply.status(200).send(students)
-    },
+      },
+      orderBy: { name: 'asc' },
+    })
+    return reply.status(200).send(students)
+  },
   )
 }
