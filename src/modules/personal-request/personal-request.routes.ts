@@ -56,22 +56,45 @@ async function sendRequestController(req: FastifyRequest, reply: FastifyReply) {
     return reply.status(403).send({ message: 'Apenas alunos podem enviar solicitações.' })
   }
 
-  const personal = await req.server.prisma.user.findUnique({ where: { id: personalId } })
+  // Verifica se o aluno já tem um personal vinculado
+  const student = await req.server.prisma.user.findUnique({
+    where:  { id: studentId },
+    select: { personalId: true },
+  })
+  if (student?.personalId) {
+    return reply.status(409).send({
+      message: 'Você já possui um personal vinculado. Desvincule-se primeiro para solicitar outro.',
+    })
+  }
+
+  // Verifica se já existe solicitação PENDING para qualquer personal
+  const pendingRequest = await req.server.prisma.personalRequest.findFirst({
+    where: { studentId, status: 'PENDING' },
+  })
+  if (pendingRequest) {
+    return reply.status(409).send({
+      message: 'Você já possui uma solicitação pendente. Aguarde a resposta antes de solicitar outro personal.',
+    })
+  }
+
+  // Verifica se personal existe
+  const personal = await req.server.prisma.user.findUnique({
+    where: { id: personalId },
+  })
   if (!personal || personal.role !== 'PERSONAL') {
     return reply.status(404).send({ message: 'Personal não encontrado.' })
   }
 
+  // Verifica se já existe solicitação para este personal específico
   const existing = await req.server.prisma.personalRequest.findUnique({
     where: { studentId_personalId: { studentId, personalId } },
   })
 
   if (existing) {
-    if (existing.status === 'PENDING') {
-      return reply.status(409).send({ message: 'Você já enviou uma solicitação para este personal.' })
-    }
     if (existing.status === 'ACCEPTED') {
       return reply.status(409).send({ message: 'Você já está vinculado a este personal.' })
     }
+    // Se foi rejeitado, permite reenviar
     const updated = await req.server.prisma.personalRequest.update({
       where: { studentId_personalId: { studentId, personalId } },
       data:  { status: 'PENDING', message: message ?? null },

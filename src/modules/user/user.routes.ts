@@ -164,4 +164,32 @@ export async function userRoutes(app: FastifyInstance) {
     return reply.status(200).send(students)
   },
   )
+  //Inativar aluno
+  app.put(
+  '/user/student/:studentId/deactivate',
+  { preHandler: [app.authenticate] },
+  async (req, reply) => {
+    if (req.user.role !== 'PERSONAL') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { studentId } = req.params as { studentId: string }
+    const personalId    = req.user.sub
+
+    const student = await req.server.prisma.user.findUnique({
+      where: { id: studentId },
+    })
+
+    if (!student || student.personalId !== personalId) {
+      return reply.status(404).send({ message: 'Aluno não encontrado ou não vinculado a você.' })
+    }
+
+    await req.server.prisma.user.update({
+      where: { id: studentId },
+      data:  { active: false },
+    })
+
+    return reply.status(200).send({ message: 'Aluno inativado com sucesso.' })
+  },
+)
 }
