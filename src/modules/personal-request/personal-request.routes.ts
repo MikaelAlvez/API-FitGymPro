@@ -219,10 +219,43 @@ async function myRequestStatusController(req: FastifyRequest, reply: FastifyRepl
   return reply.status(200).send(requests)
 }
 
+// ─── POST /personal-request/unlink — aluno se desvincula ─
+async function unlinkPersonalController(req: FastifyRequest, reply: FastifyReply) {
+  if (req.user.role !== 'STUDENT') {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+
+  const studentId = req.user.sub
+
+  const student = await req.server.prisma.user.findUnique({
+    where:  { id: studentId },
+    select: { personalId: true },
+  })
+
+  if (!student?.personalId) {
+    return reply.status(409).send({ message: 'Você não possui um personal vinculado.' })
+  }
+
+  // Remove vínculo e atualiza status da solicitação para REJECTED
+  await req.server.prisma.$transaction([
+    req.server.prisma.user.update({
+      where: { id: studentId },
+      data:  { personalId: null },
+    }),
+    req.server.prisma.personalRequest.updateMany({
+      where: { studentId, status: 'ACCEPTED' },
+      data:  { status: 'REJECTED' },
+    }),
+  ])
+
+  return reply.status(200).send({ message: 'Desvinculado com sucesso.' })
+}
+
 // ─── Register routes ──────────────────────────────────
 export async function personalRequestRoutes(app: FastifyInstance) {
   app.get('/personals',                     { preHandler: [app.authenticate] }, listPersonalsController)
   app.post('/personal-request',             { preHandler: [app.authenticate] }, sendRequestController)
+  app.post('/personal-request/unlink',      { preHandler: [app.authenticate] }, unlinkPersonalController)
   app.get('/personal-requests',             { preHandler: [app.authenticate] }, listRequestsController)
   app.get('/personal-request/my-status',    { preHandler: [app.authenticate] }, myRequestStatusController)
   app.put('/personal-request/:id/accept',   { preHandler: [app.authenticate] }, acceptRequestController)
