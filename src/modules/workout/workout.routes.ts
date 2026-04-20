@@ -157,6 +157,21 @@ async function deleteWorkoutController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(204).send()
 }
 
+// ─── GET /workouts/my — aluno busca seus próprios treinos ─
+async function myWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
+  if (req.user.role !== 'STUDENT') {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+
+  const workouts = await req.server.prisma.workout.findMany({
+    where:   { studentId: req.user.sub },
+    include: { exercises: { orderBy: { order: 'asc' } } },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return reply.status(200).send(workouts)
+}
+
 // ─── Register routes ──────────────────────────
 export async function workoutRoutes(app: FastifyInstance) {
   app.get(
@@ -179,4 +194,9 @@ export async function workoutRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate] },
     deleteWorkoutController,
   )
+  app.get(
+  '/workouts/my',
+  { preHandler: [app.authenticate] },
+  myWorkoutsController,
+)
 }
