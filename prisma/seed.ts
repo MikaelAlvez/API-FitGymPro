@@ -4,90 +4,60 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Iniciando seed...')
+  console.log('🌱 Iniciando seed...')
 
   const password = await bcrypt.hash('123456', 10)
 
-  // ─── Personais ───────────────────────────
-  const personalsData = [
+  // ─── Cidades RN ──────────────────────────
+  const cities = [
+    { city: 'Mossoró',            state: 'RN' },
+    { city: 'Natal',              state: 'RN' },
+    { city: 'Angicos',            state: 'RN' },
+    { city: 'Limoeiro do Norte',  state: 'CE' },
+    { city: 'Assú',               state: 'RN' },
+  ]
+
+  const getCity = (i: number) => cities[i % cities.length]
+
+  // ─── Personal de teste ────────────────────
+  const testPersonals = [
     {
-      name: 'Carlos Mendes',       email: 'carlos@fitgym.com',   cpf: '11111111101',
-      cref: 'CREF-001234-G/SP',   course: 'Educação Física',     university: 'USP',
-      educationLevel: 'Graduação', classFormat: 'presential',
-      availableDays: ['monday','wednesday','friday'],
-      sex: 'Masculino', birthDate: '15/03/1985', weight: '82', height: '178',
+      name:  'Personal Teste',
+      email: 'personal@teste.com',
+      cpf:   '00000000001',
+      cref:  'CREF-000001-G/RN',
+      ...cities[0],
     },
-    {
-      name: 'Fernanda Lima',        email: 'fernanda@fitgym.com',  cpf: '11111111102',
-      cref: 'CREF-002345-G/RJ',   course: 'Educação Física',     university: 'UFRJ',
-      educationLevel: 'Pós-graduação', classFormat: 'online',
-      availableDays: ['tuesday','thursday','saturday'],
-      sex: 'Feminino', birthDate: '22/07/1990', weight: '65', height: '165',
-    },
-    {
-      name: 'Rafael Souza',         email: 'rafael@fitgym.com',    cpf: '11111111103',
-      cref: 'CREF-003456-G/MG',   course: 'Educação Física',     university: 'UFMG',
-      educationLevel: 'Graduação', classFormat: 'hybrid',
-      availableDays: ['monday','tuesday','wednesday','thursday','friday'],
-      sex: 'Masculino', birthDate: '10/11/1988', weight: '88', height: '182',
-    },
-    {
-      name: 'Juliana Costa',        email: 'juliana@fitgym.com',   cpf: '11111111104',
-      cref: 'CREF-004567-G/BA',   course: 'Educação Física',     university: 'UFBA',
-      educationLevel: 'Mestrado',  classFormat: 'presential',
-      availableDays: ['monday','wednesday','friday','saturday'],
-      sex: 'Feminino', birthDate: '05/04/1992', weight: '58', height: '162',
-    },
-    {
-      name: 'Diego Almeida',        email: 'diego@fitgym.com',     cpf: '11111111105',
-      cref: 'CREF-005678-G/PR',   course: 'Educação Física',     university: 'UFPR',
-      educationLevel: 'Graduação', classFormat: 'online',
-      availableDays: ['tuesday','thursday'],
-      sex: 'Masculino', birthDate: '18/09/1987', weight: '90', height: '185',
-    },
-    {
-      name: 'Mariana Ferreira',     email: 'mariana@fitgym.com',   cpf: '11111111106',
-      cref: 'CREF-006789-G/CE',   course: 'Educação Física',     university: 'UFC',
-      educationLevel: 'Pós-graduação', classFormat: 'hybrid',
-      availableDays: ['monday','wednesday','friday'],
-      sex: 'Feminino', birthDate: '30/01/1993', weight: '60', height: '167',
-    },
-    {
-      name: 'Thiago Rocha',         email: 'thiago@fitgym.com',    cpf: '11111111107',
-      cref: 'CREF-007890-G/RS',   course: 'Educação Física',     university: 'UFRGS',
-      educationLevel: 'Graduação', classFormat: 'presential',
-      availableDays: ['monday','tuesday','wednesday','thursday','friday','saturday'],
-      sex: 'Masculino', birthDate: '12/06/1984', weight: '85', height: '180',
-    },
-    {
-      name: 'Camila Nunes',         email: 'camila@fitgym.com',    cpf: '11111111108',
-      cref: 'CREF-008901-G/SC',   course: 'Educação Física',     university: 'UFSC',
-      educationLevel: 'Mestrado',  classFormat: 'online',
-      availableDays: ['tuesday','thursday','saturday'],
-      sex: 'Feminino', birthDate: '25/08/1991', weight: '55', height: '160',
-    },
-    {
-      name: 'Bruno Carvalho',       email: 'bruno@fitgym.com',     cpf: '11111111109',
-      cref: 'CREF-009012-G/GO',   course: 'Educação Física',     university: 'UFG',
-      educationLevel: 'Graduação', classFormat: 'presential',
-      availableDays: ['monday','wednesday','friday'],
-      sex: 'Masculino', birthDate: '07/02/1986', weight: '78', height: '175',
-    },
-    {
-      name: 'Letícia Barbosa',      email: 'leticia@fitgym.com',   cpf: '11111111110',
-      cref: 'CREF-010123-G/PE',   course: 'Educação Física',     university: 'UFPE',
-      educationLevel: 'Doutorado', classFormat: 'hybrid',
-      availableDays: ['monday','tuesday','wednesday','thursday','friday'],
-      sex: 'Feminino', birthDate: '14/12/1989', weight: '62', height: '168',
-    },
+  ]
+
+  // ─── 10 Personais extras ──────────────────
+  const extraPersonals = [
+    { name: 'Carlos Mendes',    email: 'carlos@fitgym.com',    cpf: '11111111101', cref: 'CREF-001001-G/RN', classFormat: 'presential', ...cities[0] },
+    { name: 'Fernanda Lima',    email: 'fernanda@fitgym.com',  cpf: '11111111102', cref: 'CREF-001002-G/RN', classFormat: 'online',     ...cities[1] },
+    { name: 'Rafael Souza',     email: 'rafael@fitgym.com',    cpf: '11111111103', cref: 'CREF-001003-G/RN', classFormat: 'hybrid',     ...cities[2] },
+    { name: 'Juliana Costa',    email: 'juliana@fitgym.com',   cpf: '11111111104', cref: 'CREF-001004-G/RN', classFormat: 'presential', ...cities[3] },
+    { name: 'Diego Almeida',    email: 'diego@fitgym.com',     cpf: '11111111105', cref: 'CREF-001005-G/RN', classFormat: 'online',     ...cities[4] },
+    { name: 'Mariana Ferreira', email: 'mariana@fitgym.com',   cpf: '11111111106', cref: 'CREF-001006-G/RN', classFormat: 'hybrid',     ...cities[0] },
+    { name: 'Thiago Rocha',     email: 'thiago@fitgym.com',    cpf: '11111111107', cref: 'CREF-001007-G/RN', classFormat: 'presential', ...cities[1] },
+    { name: 'Camila Nunes',     email: 'camila@fitgym.com',    cpf: '11111111108', cref: 'CREF-001008-G/RN', classFormat: 'online',     ...cities[2] },
+    { name: 'Bruno Carvalho',   email: 'bruno@fitgym.com',     cpf: '11111111109', cref: 'CREF-001009-G/RN', classFormat: 'presential', ...cities[3] },
+    { name: 'Letícia Barbosa',  email: 'leticia@fitgym.com',   cpf: '11111111110', cref: 'CREF-001010-G/RN', classFormat: 'hybrid',     ...cities[4] },
+  ]
+
+  const allPersonalsData = [
+    ...testPersonals.map(p => ({ ...p, classFormat: 'presential' })),
+    ...extraPersonals,
   ]
 
   const createdPersonals: any[] = []
 
-  for (const p of personalsData) {
-    const existing = await prisma.user.findUnique({ where: { email: p.email } })
+  for (const [i, p] of allPersonalsData.entries()) {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email: p.email }, { cpf: p.cpf }] },
+    })
+
     if (existing) {
-      console.log(`Personal já existe: ${p.email}`)
+      console.log(`Já existe: ${p.email}`)
       createdPersonals.push(existing)
       continue
     }
@@ -97,144 +67,116 @@ async function main() {
         name:     p.name,
         email:    p.email,
         cpf:      p.cpf,
-        phone:    '(11) 99999-0001',
+        phone:    `(84) 9${String(9000 + i).padStart(4, '0')}-0001`,
         password,
         role:     'PERSONAL',
-        city:     'São Paulo',
-        state:    'SP',
+        city:     p.city,
+        state:    p.state,
         personalProfile: {
           create: {
-            sex:            p.sex,
-            birthDate:      p.birthDate,
-            weight:         p.weight,
-            height:         p.height,
-            course:         p.course,
-            university:     p.university,
-            educationLevel: p.educationLevel,
+            sex:            i % 2 === 0 ? 'Masculino' : 'Feminino',
+            birthDate:      `${10 + (i % 20)}/0${(i % 9) + 1}/198${i % 9}`,
+            weight:         String(65 + i * 2),
+            height:         String(160 + i * 2),
+            course:         'Educação Física',
+            university:     ['UERN', 'UFRN', 'UnP', 'UNIFACEX', 'UFERSA'][i % 5],
+            educationLevel: ['Graduação', 'Pós-graduação', 'Mestrado'][i % 3],
             cref:           p.cref,
             classFormat:    p.classFormat,
-            availableDays:  p.availableDays,
+            availableDays:  ['monday', 'wednesday', 'friday'],
           },
         },
       },
     })
 
     createdPersonals.push(user)
-    console.log(`Personal criado: ${p.name}`)
+    console.log(`Personal criado: ${p.name} (${p.city})`)
   }
 
-  // ─── Alunos ──────────────────────────────
-  const studentsData = [
-    {
-      name: 'Ana Paula Oliveira',  email: 'ana@fitgym.com',      cpf: '22222222201',
-      sex: 'Feminino',   birthDate: '10/05/1995', weight: '62',  height: '163',
-      goal: 'Emagrecimento',  focusMuscle: 'Abdômen',    experience: 'beginner',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['monday','wednesday','friday'],
-    },
-    {
-      name: 'Pedro Henrique Silva', email: 'pedro@fitgym.com',   cpf: '22222222202',
-      sex: 'Masculino',  birthDate: '22/08/1998', weight: '78',  height: '177',
-      goal: 'Hipertrofia',    focusMuscle: 'Peito e costas', experience: 'intermediate',
-      gymType: 'advanced', cardio: 'exclude', trainingDays: ['monday','tuesday','thursday','friday'],
-    },
-    {
-      name: 'Larissa Mendes',      email: 'larissa@fitgym.com',  cpf: '22222222203',
-      sex: 'Feminino',   birthDate: '14/03/1993', weight: '55',  height: '158',
-      goal: 'Condicionamento', focusMuscle: 'Pernas',      experience: 'beginner',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['tuesday','thursday','saturday'],
-    },
-    {
-      name: 'Gustavo Ribeiro',     email: 'gustavo@fitgym.com',  cpf: '22222222204',
-      sex: 'Masculino',  birthDate: '30/11/1990', weight: '92',  height: '183',
-      goal: 'Força',          focusMuscle: 'Membros superiores', experience: 'advanced',
-      gymType: 'advanced', cardio: 'exclude', trainingDays: ['monday','wednesday','friday','saturday'],
-    },
-    {
-      name: 'Isabela Martins',     email: 'isabela@fitgym.com',  cpf: '22222222205',
-      sex: 'Feminino',   birthDate: '07/07/1997', weight: '59',  height: '165',
-      goal: 'Flexibilidade',  focusMuscle: 'Core',         experience: 'beginner',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['monday','wednesday','friday'],
-    },
-    {
-      name: 'Mateus Cavalcanti',   email: 'mateus@fitgym.com',   cpf: '22222222206',
-      sex: 'Masculino',  birthDate: '19/01/1996', weight: '74',  height: '174',
-      goal: 'Hipertrofia',    focusMuscle: 'Braços',       experience: 'intermediate',
-      gymType: 'advanced', cardio: 'include', trainingDays: ['tuesday','thursday','saturday'],
-    },
-    {
-      name: 'Bianca Freitas',      email: 'bianca@fitgym.com',   cpf: '22222222207',
-      sex: 'Feminino',   birthDate: '25/04/1994', weight: '67',  height: '170',
-      goal: 'Emagrecimento',  focusMuscle: 'Glúteos',      experience: 'intermediate',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['monday','wednesday','friday'],
-    },
-    {
-      name: 'Lucas Pimentel',      email: 'lucas@fitgym.com',    cpf: '22222222208',
-      sex: 'Masculino',  birthDate: '03/09/1999', weight: '68',  height: '172',
-      goal: 'Resistência',    focusMuscle: 'Pernas',       experience: 'beginner',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['monday','tuesday','wednesday','thursday','friday'],
-    },
-    {
-      name: 'Vitória Santos',      email: 'vitoria@fitgym.com',  cpf: '22222222209',
-      sex: 'Feminino',   birthDate: '11/12/1992', weight: '53',  height: '155',
-      goal: 'Saúde e bem-estar', focusMuscle: 'Corpo todo', experience: 'beginner',
-      gymType: 'basic',  cardio: 'include', trainingDays: ['tuesday','thursday'],
-    },
-    {
-      name: 'Felipe Nascimento',   email: 'felipe@fitgym.com',   cpf: '22222222210',
-      sex: 'Masculino',  birthDate: '28/06/1991', weight: '85',  height: '180',
-      goal: 'Definição muscular', focusMuscle: 'Abdômen e peito', experience: 'advanced',
-      gymType: 'advanced', cardio: 'include', trainingDays: ['monday','wednesday','friday','saturday'],
-    },
+  // ─── Aluno de teste ───────────────────────
+  const testStudent = {
+    name:  'Aluno Teste',
+    email: 'aluno@teste.com',
+    cpf:   '00000000002',
+    ...cities[0],
+  }
+
+  // ─── 10 Alunos extras ─────────────────────
+  const extraStudents = [
+    { name: 'Ana Paula Oliveira',   email: 'ana@fitgym.com',      cpf: '22222222201', goal: 'Emagrecimento',      experience: 'beginner',     ...cities[0] },
+    { name: 'Pedro Henrique Silva', email: 'pedro@fitgym.com',    cpf: '22222222202', goal: 'Hipertrofia',        experience: 'intermediate', ...cities[1] },
+    { name: 'Larissa Mendes',       email: 'larissa@fitgym.com',  cpf: '22222222203', goal: 'Condicionamento',    experience: 'beginner',     ...cities[2] },
+    { name: 'Gustavo Ribeiro',      email: 'gustavo@fitgym.com',  cpf: '22222222204', goal: 'Força',              experience: 'advanced',     ...cities[3] },
+    { name: 'Isabela Martins',      email: 'isabela@fitgym.com',  cpf: '22222222205', goal: 'Flexibilidade',      experience: 'beginner',     ...cities[4] },
+    { name: 'Mateus Cavalcanti',    email: 'mateus@fitgym.com',   cpf: '22222222206', goal: 'Hipertrofia',        experience: 'intermediate', ...cities[0] },
+    { name: 'Bianca Freitas',       email: 'bianca@fitgym.com',   cpf: '22222222207', goal: 'Emagrecimento',      experience: 'intermediate', ...cities[1] },
+    { name: 'Lucas Pimentel',       email: 'lucas@fitgym.com',    cpf: '22222222208', goal: 'Resistência',        experience: 'beginner',     ...cities[2] },
+    { name: 'Vitória Santos',       email: 'vitoria@fitgym.com',  cpf: '22222222209', goal: 'Saúde e bem-estar',  experience: 'beginner',     ...cities[3] },
+    { name: 'Felipe Nascimento',    email: 'felipe@fitgym.com',   cpf: '22222222210', goal: 'Definição muscular', experience: 'advanced',     ...cities[4] },
   ]
 
-  // Pega o primeiro personal para vincular os alunos
+  const allStudentsData = [
+    { ...testStudent, goal: 'Hipertrofia', experience: 'beginner' },
+    ...extraStudents,
+  ]
+
+  // Vincula os alunos extras ao personal de teste
   const defaultPersonal = createdPersonals[0]
 
-  for (const st of studentsData) {
-    const existing = await prisma.user.findUnique({ where: { email: st.email } })
+  for (const [i, st] of allStudentsData.entries()) {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email: st.email }, { cpf: st.cpf }] },
+    })
+
     if (existing) {
-      console.log(`  ⚠️  Aluno já existe: ${st.email}`)
+      console.log(`Já existe: ${st.email}`)
       continue
     }
+
+    // Aluno de teste não tem personal vinculado
+    // Alunos extras são vinculados ao personal de teste
+    const personalId = i === 0 ? null : defaultPersonal.id
 
     await prisma.user.create({
       data: {
         name:       st.name,
         email:      st.email,
         cpf:        st.cpf,
-        phone:      '(11) 98888-0001',
+        phone:      `(84) 9${String(8000 + i).padStart(4, '0')}-0002`,
         password,
         role:       'STUDENT',
-        city:       'São Paulo',
-        state:      'SP',
-        personalId: defaultPersonal.id, //vinculados ao primeiro personal
+        city:       st.city,
+        state:      st.state,
+        personalId,
         studentProfile: {
           create: {
-            sex:          st.sex,
-            birthDate:    st.birthDate,
-            weight:       st.weight,
-            height:       st.height,
+            sex:          i % 2 === 0 ? 'Feminino' : 'Masculino',
+            birthDate:    `${10 + (i % 20)}/0${(i % 9) + 1}/199${i % 9}`,
+            weight:       String(55 + i * 3),
+            height:       String(155 + i * 2),
             goal:         st.goal,
-            focusMuscle:  st.focusMuscle,
+            focusMuscle:  ['Abdômen', 'Peito', 'Pernas', 'Costas', 'Glúteos'][i % 5],
             experience:   st.experience,
-            gymType:      st.gymType,
-            cardio:       st.cardio,
-            trainingDays: st.trainingDays,
+            gymType:      i % 2 === 0 ? 'basic' : 'advanced',
+            cardio:       i % 2 === 0 ? 'include' : 'exclude',
+            trainingDays: ['monday', 'wednesday', 'friday'],
           },
         },
       },
     })
 
-    console.log(`Aluno criado: ${st.name}`)
+    console.log(`Aluno criado: ${st.name} (${st.city})`)
   }
 
-  console.log('\n🎉 Seed concluído!')
-  console.log('─────────────────────────────────────')
-  console.log('📧 Login de qualquer usuário:')
-  console.log('   Senha: 123456')
-  console.log('   Personal: carlos@fitgym.com')
-  console.log('   Aluno:    ana@fitgym.com')
-  console.log('─────────────────────────────────────')
+  console.log('\nSeed concluído!')
+  console.log('──────────────────────────────────────────')
+  console.log('Credenciais de teste (senha: 123456):')
+  console.log('   Personal: personal@teste.com')
+  console.log('   Aluno:    aluno@teste.com')
+  console.log('──────────────────────────────────────────')
+  console.log('Cidades: Mossoró, Natal, Angicos,')
+  console.log('            Limoeiro do Norte, Assú')
+  console.log('──────────────────────────────────────────')
 }
 
 main()

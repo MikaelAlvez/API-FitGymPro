@@ -18,7 +18,15 @@ async function listPersonalsController(req: FastifyRequest, reply: FastifyReply)
     orderBy: { name: 'asc' },
   })
 
-  const userId   = req.user.sub
+  const userId = req.user.sub
+
+  //Busca o personalId atual do aluno
+  const student = await req.server.prisma.user.findUnique({
+    where:  { id: userId },
+    select: { personalId: true },
+  })
+
+  // Busca todas as solicitações do aluno
   const requests = await req.server.prisma.personalRequest.findMany({
     where:  { studentId: userId },
     select: { personalId: true, status: true },
@@ -26,10 +34,13 @@ async function listPersonalsController(req: FastifyRequest, reply: FastifyReply)
 
   const requestMap = new Map(requests.map(r => [r.personalId, r.status]))
 
-  const result = personals.map(p => ({
-    ...p,
-    requestStatus: requestMap.get(p.id) ?? null,
-  }))
+  const result = personals.map(p => {
+    //Se este personal é o vinculado atualmente, sempre mostra ACCEPTED
+    if (student?.personalId === p.id) {
+      return { ...p, requestStatus: 'ACCEPTED' }
+    }
+    return { ...p, requestStatus: requestMap.get(p.id) ?? null }
+  })
 
   return reply.status(200).send(result)
 }
