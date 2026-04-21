@@ -165,7 +165,19 @@ async function myWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
 
   const workouts = await req.server.prisma.workout.findMany({
     where:   { studentId: req.user.sub },
-    include: { exercises: { orderBy: { order: 'asc' } } },
+    include: {
+      exercises: { orderBy: { order: 'asc' } },
+      // dados do personal
+      personal: {
+        select: {
+          id:   true,
+          name: true,
+          personalProfile: {
+            select: { cref: true },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
