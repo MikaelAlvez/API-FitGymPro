@@ -46,12 +46,7 @@ async function listWorkoutsController(req: FastifyRequest, reply: FastifyReply) 
   return reply.status(200).send(workouts)
 }
 
-// ─── POST /workouts ───────────────────────────
 async function createWorkoutController(req: FastifyRequest, reply: FastifyReply) {
-  if (req.user.role !== 'PERSONAL') {
-    return reply.status(403).send({ message: 'Acesso negado.' })
-  }
-
   const parsed = createWorkoutSchema.safeParse(req.body)
   if (!parsed.success) {
     return reply.status(400).send({
@@ -60,45 +55,64 @@ async function createWorkoutController(req: FastifyRequest, reply: FastifyReply)
     })
   }
 
-  const personalId                          = req.user.sub
+  const userId = req.user.sub
+  const role   = req.user.role
   const { studentId, name, days, notes, exercises } = parsed.data
 
-  // Verifica vínculo
-  const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
-  if (!student || student.personalId !== personalId) {
-    return reply.status(403).send({ message: 'Este aluno não está vinculado a você.' })
+  // Personal cria para aluno vinculado
+  if (role === 'PERSONAL') {
+    const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
+    if (!student || student.personalId !== userId) {
+      return reply.status(403).send({ message: 'Este aluno não está vinculado a você.' })
+    }
+
+    const workout = await req.server.prisma.workout.create({
+      data: {
+        name, days, notes: notes ?? null,
+        personalId: userId,
+        studentId,
+        exercises: {
+          create: exercises.map((e, i) => ({
+            name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
+          })),
+        },
+      },
+      include: {
+        exercises: { orderBy: { order: 'asc' } },
+        personal:  { select: { id: true, name: true, personalProfile: { select: { cref: true } } } },
+      },
+    })
+    return reply.status(201).send(workout)
   }
 
-  const workout = await req.server.prisma.workout.create({
-    data: {
-      name,
-      days,
-      notes:     notes ?? null,
-      personalId,
-      studentId,
-      exercises: {
-        create: exercises.map((e, i) => ({
-          name:  e.name,
-          sets:  e.sets,
-          reps:  e.reps,
-          order: e.order ?? i,
-        })),
+  // Aluno cria treino para si mesmo
+  if (role === 'STUDENT') {
+    const workout = await req.server.prisma.workout.create({
+      data: {
+        name, days, notes: notes ?? null,
+        personalId: null, // sem personal
+        studentId:  userId,
+        exercises: {
+          create: exercises.map((e, i) => ({
+            name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
+          })),
+        },
       },
-    },
-    include: { exercises: { orderBy: { order: 'asc' } } },
-  })
+      include: {
+        exercises: { orderBy: { order: 'asc' } },
+        personal:  { select: { id: true, name: true, personalProfile: { select: { cref: true } } } },
+      },
+    })
+    return reply.status(201).send(workout)
+  }
 
-  return reply.status(201).send(workout)
+  return reply.status(403).send({ message: 'Acesso negado.' })
 }
 
-// ─── PUT /workouts/:id ────────────────────────
 async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply) {
-  if (req.user.role !== 'PERSONAL') {
-    return reply.status(403).send({ message: 'Acesso negado.' })
-  }
-
-  const { id }    = req.params as { id: string }
-  const personalId = req.user.sub
+  const { id }  = req.params as { id: string }
+  const userId  = req.user.sub
+  const role    = req.user.role
 
   const parsed = updateWorkoutSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -109,48 +123,62 @@ async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply)
   }
 
   const existing = await req.server.prisma.workout.findUnique({ where: { id } })
-  if (!existing || existing.personalId !== personalId) {
+  if (!existing) {
     return reply.status(404).send({ message: 'Treino não encontrado.' })
+  }
+
+  // Personal só edita treinos que criou
+  if (role === 'PERSONAL' && existing.personalId !== userId) {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+
+  // Aluno só edita treinos próprios (sem personal)
+  if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
+    return reply.status(403).send({ message: 'Você só pode editar seus próprios treinos.' })
   }
 
   const { exercises, ...workoutData } = parsed.data
 
-  // Atualiza treino e recria exercícios se enviados
   const workout = await req.server.prisma.$transaction(async (tx) => {
     if (exercises) {
       await tx.exercise.deleteMany({ where: { workoutId: id } })
       await tx.exercise.createMany({
         data: exercises.map((e, i) => ({
-          workoutId: id,
-          name:      e.name,
-          sets:      e.sets,
-          reps:      e.reps,
-          order:     e.order ?? i,
+          workoutId: id, name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
         })),
       })
     }
     return tx.workout.update({
       where:   { id },
       data:    workoutData,
-      include: { exercises: { orderBy: { order: 'asc' } } },
+      include: {
+        exercises: { orderBy: { order: 'asc' } },
+        personal:  { select: { id: true, name: true, personalProfile: { select: { cref: true } } } },
+      },
     })
   })
 
   return reply.status(200).send(workout)
 }
 
-// ─── DELETE /workouts/:id ─────────────────────
 async function deleteWorkoutController(req: FastifyRequest, reply: FastifyReply) {
-  if (req.user.role !== 'PERSONAL') {
+  const { id }  = req.params as { id: string }
+  const userId  = req.user.sub
+  const role    = req.user.role
+
+  const existing = await req.server.prisma.workout.findUnique({ where: { id } })
+  if (!existing) {
+    return reply.status(404).send({ message: 'Treino não encontrado.' })
+  }
+
+  // Personal só exclui treinos que criou
+  if (role === 'PERSONAL' && existing.personalId !== userId) {
     return reply.status(403).send({ message: 'Acesso negado.' })
   }
 
-  const { id }     = req.params as { id: string }
-  const personalId = req.user.sub
-
-  const existing = await req.server.prisma.workout.findUnique({ where: { id } })
-  if (!existing || existing.personalId !== personalId) {
-    return reply.status(404).send({ message: 'Treino não encontrado.' })
+  // Aluno só exclui treinos próprios (sem personal)
+  if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
+    return reply.status(403).send({ message: 'Você só pode excluir seus próprios treinos.' })
   }
 
   await req.server.prisma.workout.delete({ where: { id } })
