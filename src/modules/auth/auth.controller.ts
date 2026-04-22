@@ -67,7 +67,7 @@ export async function meController(req: FastifyRequest, reply: FastifyReply) {
       id:           true,
       name:         true,
       email:        true,
-      cpf:          true,  
+      cpf:          true,
       role:         true,
       avatar:       true,
       phone:        true,
@@ -108,8 +108,23 @@ export async function meProfileController(req: FastifyRequest, reply: FastifyRep
       email:           true,
       role:            true,
       avatar:          true,
+      personalId:      true, 
       studentProfile:  role === 'STUDENT'  ? true : false,
       personalProfile: role === 'PERSONAL' ? true : false,
+
+      // Retorna dados do personal vinculado para alunos
+      personal: role === 'STUDENT' ? {
+        select: {
+          id:     true,
+          name:   true,
+          avatar: true,
+          city:   true,
+          state:  true,
+          personalProfile: {
+            select: { cref: true, classFormat: true },
+          },
+        },
+      } : false,
     },
   })
 
