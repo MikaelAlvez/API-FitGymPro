@@ -122,10 +122,11 @@ model Workout {
   notes      String?
   personalId String?
   studentId  String
+  active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  personal  User?      @relation("PersonalWorkouts", fields: [personalId], references: [id], onDelete: SetNull)  // ✅ User? opcional
+  personal  User?      @relation("PersonalWorkouts", fields: [personalId], references: [id], onDelete: SetNull)
   student   User       @relation("StudentWorkouts",  fields: [studentId],  references: [id], onDelete: Cascade)
   exercises Exercise[]
 

@@ -212,6 +212,46 @@ async function myWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
   return reply.status(200).send(workouts)
 }
 
+// ─── PUT /workouts/:id/deactivate ────────────
+async function deactivateWorkoutController(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = req.params as { id: string }
+  const userId = req.user.sub
+  const role   = req.user.role
+
+  const existing = await req.server.prisma.workout.findUnique({ where: { id } })
+  if (!existing) return reply.status(404).send({ message: 'Treino não encontrado.' })
+
+  if (role === 'PERSONAL' && existing.personalId !== userId) {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+  if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
+    return reply.status(403).send({ message: 'Você só pode inativar seus próprios treinos.' })
+  }
+
+  await req.server.prisma.workout.update({ where: { id }, data: { active: false } })
+  return reply.status(200).send({ message: 'Treino inativado.' })
+}
+
+// ─── PUT /workouts/:id/activate ──────────────
+async function activateWorkoutController(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = req.params as { id: string }
+  const userId = req.user.sub
+  const role   = req.user.role
+
+  const existing = await req.server.prisma.workout.findUnique({ where: { id } })
+  if (!existing) return reply.status(404).send({ message: 'Treino não encontrado.' })
+
+  if (role === 'PERSONAL' && existing.personalId !== userId) {
+    return reply.status(403).send({ message: 'Acesso negado.' })
+  }
+  if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
+    return reply.status(403).send({ message: 'Você só pode ativar seus próprios treinos.' })
+  }
+
+  await req.server.prisma.workout.update({ where: { id }, data: { active: true } })
+  return reply.status(200).send({ message: 'Treino ativado.' })
+}
+
 // ─── Register routes ──────────────────────────
 export async function workoutRoutes(app: FastifyInstance) {
   app.get(
@@ -235,8 +275,19 @@ export async function workoutRoutes(app: FastifyInstance) {
     deleteWorkoutController,
   )
   app.get(
-  '/workouts/my',
-  { preHandler: [app.authenticate] },
-  myWorkoutsController,
-)
+    '/workouts/my',
+    { preHandler: [app.authenticate] },
+    myWorkoutsController,
+  )
+  app.put(
+    '/workouts/:id/deactivate',
+    { preHandler: [app.authenticate] },
+    deactivateWorkoutController
+  )
+
+  app.put(
+    '/workouts/:id/activate',
+    { preHandler: [app.authenticate] },
+    activateWorkoutController
+  )
 }
