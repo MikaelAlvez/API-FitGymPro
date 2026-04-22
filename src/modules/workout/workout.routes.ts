@@ -1,12 +1,15 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 
-// ─── Schemas ─────────────────────────────────
 const exerciseSchema = z.object({
-  name:  z.string().min(1),
-  sets:  z.string().min(1),
-  reps:  z.string().min(1),
-  order: z.number().int().default(0),
+  name:       z.string().min(1),
+  sets:       z.string().default(''),
+  reps:       z.string().default(''),
+  order:      z.number().int().default(0),
+  type:       z.enum(['exercise', 'cardio']).default('exercise'),
+  groupId:    z.string().optional(),
+  groupLabel: z.string().optional(),
+  duration:   z.string().optional(),
 })
 
 const createWorkoutSchema = z.object({
@@ -24,15 +27,39 @@ const updateWorkoutSchema = z.object({
   exercises: z.array(exerciseSchema).optional(),
 })
 
+// ✅ Para nested create (sem workoutId)
+const mapExercisesCreate = (exercises: z.infer<typeof exerciseSchema>[]) =>
+  exercises.map((e, i) => ({
+    name:       e.name,
+    sets:       e.sets,
+    reps:       e.reps,
+    order:      e.order ?? i,
+    type:       e.type       ?? 'exercise',
+    groupId:    e.groupId    ?? null,
+    groupLabel: e.groupLabel ?? null,
+    duration:   e.duration   ?? null,
+  }))
+
+// ✅ Para createMany (workoutId obrigatório)
+const mapExercisesCreateMany = (exercises: z.infer<typeof exerciseSchema>[], workoutId: string) =>
+  exercises.map((e, i) => ({
+    workoutId,
+    name:       e.name,
+    sets:       e.sets,
+    reps:       e.reps,
+    order:      e.order ?? i,
+    type:       e.type       ?? 'exercise',
+    groupId:    e.groupId    ?? null,
+    groupLabel: e.groupLabel ?? null,
+    duration:   e.duration   ?? null,
+  }))
+
 // ─── GET /workouts/student/:studentId ────────
 async function listWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
   const { studentId } = req.params as { studentId: string }
   const personalId    = req.user.sub
 
-  // Verifica vínculo
-  const student = await req.server.prisma.user.findUnique({
-    where: { id: studentId },
-  })
+  const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
   if (!student || student.personalId !== personalId) {
     return reply.status(403).send({ message: 'Acesso negado.' })
   }
@@ -46,6 +73,7 @@ async function listWorkoutsController(req: FastifyRequest, reply: FastifyReply) 
   return reply.status(200).send(workouts)
 }
 
+// ─── POST /workouts ───────────────────────────
 async function createWorkoutController(req: FastifyRequest, reply: FastifyReply) {
   const parsed = createWorkoutSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -59,7 +87,6 @@ async function createWorkoutController(req: FastifyRequest, reply: FastifyReply)
   const role   = req.user.role
   const { studentId, name, days, notes, exercises } = parsed.data
 
-  // Personal cria para aluno vinculado
   if (role === 'PERSONAL') {
     const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
     if (!student || student.personalId !== userId) {
@@ -71,11 +98,7 @@ async function createWorkoutController(req: FastifyRequest, reply: FastifyReply)
         name, days, notes: notes ?? null,
         personalId: userId,
         studentId,
-        exercises: {
-          create: exercises.map((e, i) => ({
-            name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
-          })),
-        },
+        exercises: { create: mapExercisesCreate(exercises) },
       },
       include: {
         exercises: { orderBy: { order: 'asc' } },
@@ -85,18 +108,13 @@ async function createWorkoutController(req: FastifyRequest, reply: FastifyReply)
     return reply.status(201).send(workout)
   }
 
-  // Aluno cria treino para si mesmo
   if (role === 'STUDENT') {
     const workout = await req.server.prisma.workout.create({
       data: {
         name, days, notes: notes ?? null,
-        personalId: null, // sem personal
+        personalId: null,
         studentId:  userId,
-        exercises: {
-          create: exercises.map((e, i) => ({
-            name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
-          })),
-        },
+        exercises: { create: mapExercisesCreate(exercises) },
       },
       include: {
         exercises: { orderBy: { order: 'asc' } },
@@ -109,6 +127,7 @@ async function createWorkoutController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(403).send({ message: 'Acesso negado.' })
 }
 
+// ─── PUT /workouts/:id ────────────────────────
 async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply) {
   const { id }  = req.params as { id: string }
   const userId  = req.user.sub
@@ -123,16 +142,11 @@ async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply)
   }
 
   const existing = await req.server.prisma.workout.findUnique({ where: { id } })
-  if (!existing) {
-    return reply.status(404).send({ message: 'Treino não encontrado.' })
-  }
+  if (!existing) return reply.status(404).send({ message: 'Treino não encontrado.' })
 
-  // Personal só edita treinos que criou
   if (role === 'PERSONAL' && existing.personalId !== userId) {
     return reply.status(403).send({ message: 'Acesso negado.' })
   }
-
-  // Aluno só edita treinos próprios (sem personal)
   if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
     return reply.status(403).send({ message: 'Você só pode editar seus próprios treinos.' })
   }
@@ -143,9 +157,7 @@ async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply)
     if (exercises) {
       await tx.exercise.deleteMany({ where: { workoutId: id } })
       await tx.exercise.createMany({
-        data: exercises.map((e, i) => ({
-          workoutId: id, name: e.name, sets: e.sets, reps: e.reps, order: e.order ?? i,
-        })),
+        data: mapExercisesCreateMany(exercises, id),
       })
     }
     return tx.workout.update({
@@ -161,22 +173,18 @@ async function updateWorkoutController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(200).send(workout)
 }
 
+// ─── DELETE /workouts/:id ─────────────────────
 async function deleteWorkoutController(req: FastifyRequest, reply: FastifyReply) {
   const { id }  = req.params as { id: string }
   const userId  = req.user.sub
   const role    = req.user.role
 
   const existing = await req.server.prisma.workout.findUnique({ where: { id } })
-  if (!existing) {
-    return reply.status(404).send({ message: 'Treino não encontrado.' })
-  }
+  if (!existing) return reply.status(404).send({ message: 'Treino não encontrado.' })
 
-  // Personal só exclui treinos que criou
   if (role === 'PERSONAL' && existing.personalId !== userId) {
     return reply.status(403).send({ message: 'Acesso negado.' })
   }
-
-  // Aluno só exclui treinos próprios (sem personal)
   if (role === 'STUDENT' && (existing.studentId !== userId || existing.personalId !== null)) {
     return reply.status(403).send({ message: 'Você só pode excluir seus próprios treinos.' })
   }
@@ -185,7 +193,7 @@ async function deleteWorkoutController(req: FastifyRequest, reply: FastifyReply)
   return reply.status(204).send()
 }
 
-// ─── GET /workouts/my — aluno busca seus próprios treinos ─
+// ─── GET /workouts/my ─────────────────────────
 async function myWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
   if (req.user.role !== 'STUDENT') {
     return reply.status(403).send({ message: 'Acesso negado.' })
@@ -195,14 +203,11 @@ async function myWorkoutsController(req: FastifyRequest, reply: FastifyReply) {
     where:   { studentId: req.user.sub },
     include: {
       exercises: { orderBy: { order: 'asc' } },
-      // dados do personal
       personal: {
         select: {
           id:   true,
           name: true,
-          personalProfile: {
-            select: { cref: true },
-          },
+          personalProfile: { select: { cref: true } },
         },
       },
     },
@@ -254,40 +259,11 @@ async function activateWorkoutController(req: FastifyRequest, reply: FastifyRepl
 
 // ─── Register routes ──────────────────────────
 export async function workoutRoutes(app: FastifyInstance) {
-  app.get(
-    '/workouts/student/:studentId',
-    { preHandler: [app.authenticate] },
-    listWorkoutsController,
-  )
-  app.post(
-    '/workouts',
-    { preHandler: [app.authenticate] },
-    createWorkoutController,
-  )
-  app.put(
-    '/workouts/:id',
-    { preHandler: [app.authenticate] },
-    updateWorkoutController,
-  )
-  app.delete(
-    '/workouts/:id',
-    { preHandler: [app.authenticate] },
-    deleteWorkoutController,
-  )
-  app.get(
-    '/workouts/my',
-    { preHandler: [app.authenticate] },
-    myWorkoutsController,
-  )
-  app.put(
-    '/workouts/:id/deactivate',
-    { preHandler: [app.authenticate] },
-    deactivateWorkoutController
-  )
-
-  app.put(
-    '/workouts/:id/activate',
-    { preHandler: [app.authenticate] },
-    activateWorkoutController
-  )
+  app.get('/workouts/student/:studentId', { preHandler: [app.authenticate] }, listWorkoutsController)
+  app.post('/workouts',                   { preHandler: [app.authenticate] }, createWorkoutController)
+  app.put('/workouts/:id',                { preHandler: [app.authenticate] }, updateWorkoutController)
+  app.delete('/workouts/:id',             { preHandler: [app.authenticate] }, deleteWorkoutController)
+  app.get('/workouts/my',                 { preHandler: [app.authenticate] }, myWorkoutsController)
+  app.put('/workouts/:id/deactivate',     { preHandler: [app.authenticate] }, deactivateWorkoutController)
+  app.put('/workouts/:id/activate',       { preHandler: [app.authenticate] }, activateWorkoutController)
 }
