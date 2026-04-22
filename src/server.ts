@@ -9,6 +9,7 @@ import { uploadRoutes }          from './modules/upload/upload.routes'
 import { userRoutes }            from './modules/user/user.routes'
 import { personalRequestRoutes } from './modules/personal-request/personal-request.routes'
 import { workoutRoutes } from './modules/workout/workout.routes'
+import { sessionRoutes } from './modules/workout/session.routes'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const staticFiles = require('@fastify/static')
@@ -31,6 +32,8 @@ app.register(uploadRoutes)
 app.register(userRoutes)
 app.register(personalRequestRoutes)
 app.register(workoutRoutes)
+
+app.register(sessionRoutes)
 
 app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 

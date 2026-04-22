@@ -49,6 +49,8 @@ model User {
   personalWorkouts Workout[] @relation("PersonalWorkouts")
   studentWorkouts  Workout[] @relation("StudentWorkouts")
 
+  studentSessions WorkoutSession[] @relation("StudentSessions")
+
   @@map("users")
 }
 
@@ -130,6 +132,8 @@ model Workout {
   student   User       @relation("StudentWorkouts",  fields: [studentId],  references: [id], onDelete: Cascade)
   exercises Exercise[]
 
+  sessions WorkoutSession[]
+
   @@map("workouts")
 }
 
@@ -147,4 +151,23 @@ model Exercise {
   workout    Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   @@map("exercises")
+}
+
+model WorkoutSession {
+  id         String    @id @default(uuid())
+  workoutId  String
+  studentId  String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  duration   Int?      // segundos
+  caption    String    // legenda obrigatória
+  notes      String?   // observação opcional
+  location   String?   // localização opcional
+  photoStart String?   // foto início opcional
+  photoEnd   String?   // foto fim opcional
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  student User    @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("workout_sessions")
 }

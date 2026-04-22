@@ -1,0 +1,117 @@
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
+
+const checkinSchema = z.object({
+  workoutId: z.string().uuid(),
+  caption:   z.string().min(1, 'Legenda obrigatória'),
+  notes:     z.string().optional(),
+  location:  z.string().optional(),
+  photoStart:z.string().optional(),
+})
+
+const checkoutSchema = z.object({
+  caption:  z.string().min(1, 'Legenda obrigatória'),
+  notes:    z.string().optional(),
+  location: z.string().optional(),
+  photoEnd: z.string().optional(),
+})
+
+export async function sessionRoutes(app: FastifyInstance) {
+
+  // ─── POST /sessions/checkin ───────────────
+  app.post('/sessions/checkin', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const parsed = checkinSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.status(400).send({ message: 'Dados inválidos.', errors: parsed.error.flatten().fieldErrors })
+    }
+
+    const studentId = req.user.sub
+    const { workoutId, caption, notes, location, photoStart } = parsed.data
+
+    // Verifica se já tem sessão ativa
+    const active = await req.server.prisma.workoutSession.findFirst({
+      where: { studentId, finishedAt: null },
+    })
+    if (active) {
+      return reply.status(409).send({ message: 'Você já tem um treino em andamento.', sessionId: active.id })
+    }
+
+    const session = await req.server.prisma.workoutSession.create({
+      data: { workoutId, studentId, caption, notes, location, photoStart },
+    })
+
+    return reply.status(201).send(session)
+  })
+
+  // ─── PUT /sessions/:id/checkout ──────────
+  app.put('/sessions/:id/checkout', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { id } = req.params as { id: string }
+    const parsed  = checkoutSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.status(400).send({ message: 'Dados inválidos.', errors: parsed.error.flatten().fieldErrors })
+    }
+
+    const session = await req.server.prisma.workoutSession.findUnique({ where: { id } })
+    if (!session || session.studentId !== req.user.sub) {
+      return reply.status(404).send({ message: 'Sessão não encontrada.' })
+    }
+    if (session.finishedAt) {
+      return reply.status(409).send({ message: 'Sessão já finalizada.' })
+    }
+
+    const finishedAt = new Date()
+    const duration   = Math.floor((finishedAt.getTime() - session.startedAt.getTime()) / 1000)
+
+    const updated = await req.server.prisma.workoutSession.update({
+      where: { id },
+      data:  {
+        finishedAt,
+        duration,
+        caption:  parsed.data.caption,
+        notes:    parsed.data.notes,
+        location: parsed.data.location,
+        photoEnd: parsed.data.photoEnd,
+      },
+    })
+
+    return reply.status(200).send(updated)
+  })
+
+  // ─── GET /sessions/active ─────────────────
+  app.get('/sessions/active', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const session = await req.server.prisma.workoutSession.findFirst({
+      where:   { studentId: req.user.sub, finishedAt: null },
+      include: { workout: { select: { id: true, name: true } } },
+    })
+
+    return reply.status(200).send(session ?? null)
+  })
+
+  // ─── GET /sessions/history ────────────────
+  app.get('/sessions/history', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const sessions = await req.server.prisma.workoutSession.findMany({
+      where:   { studentId: req.user.sub, finishedAt: { not: null } },
+      include: { workout: { select: { id: true, name: true } } },
+      orderBy: { startedAt: 'desc' },
+      take:    20,
+    })
+
+    return reply.status(200).send(sessions)
+  })
+}
