@@ -1,12 +1,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
+import path from 'path'
+import fs   from 'fs'
 
 const checkinSchema = z.object({
-  workoutId: z.string().uuid(),
-  caption:   z.string().min(1, 'Legenda obrigatória'),
-  notes:     z.string().optional(),
-  location:  z.string().optional(),
-  photoStart:z.string().optional(),
+  workoutId:  z.string().uuid(),
+  caption:    z.string().min(1, 'Legenda obrigatória'),
+  notes:      z.string().optional(),
+  location:   z.string().optional(),
+  photoStart: z.string().optional(),
 })
 
 const checkoutSchema = z.object({
@@ -15,6 +17,20 @@ const checkoutSchema = z.object({
   location: z.string().optional(),
   photoEnd: z.string().optional(),
 })
+
+// Schema para edição de sessão já finalizada
+const updateSessionSchema = z.object({
+  caption:  z.string().min(1).optional(),
+  notes:    z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+})
+
+// Remove arquivo de upload se existir
+const removeFile = (urlPath: string | null | undefined) => {
+  if (!urlPath) return
+  const filepath = path.join(process.cwd(), 'src', urlPath.replace(/^\//, ''))
+  if (fs.existsSync(filepath)) fs.unlinkSync(filepath)
+}
 
 export async function sessionRoutes(app: FastifyInstance) {
 
@@ -32,7 +48,6 @@ export async function sessionRoutes(app: FastifyInstance) {
     const studentId = req.user.sub
     const { workoutId, caption, notes, location, photoStart } = parsed.data
 
-    // Verifica se já tem sessão ativa
     const active = await req.server.prisma.workoutSession.findFirst({
       where: { studentId, finishedAt: null },
     })
@@ -113,5 +128,57 @@ export async function sessionRoutes(app: FastifyInstance) {
     })
 
     return reply.status(200).send(sessions)
+  })
+
+  // ─── PUT /sessions/:id ── Editar sessão ───
+  app.put('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { id } = req.params as { id: string }
+    const parsed  = updateSessionSchema.safeParse(req.body)
+    if (!parsed.success) {
+      return reply.status(400).send({ message: 'Dados inválidos.', errors: parsed.error.flatten().fieldErrors })
+    }
+
+    const session = await req.server.prisma.workoutSession.findUnique({ where: { id } })
+    if (!session || session.studentId !== req.user.sub) {
+      return reply.status(404).send({ message: 'Sessão não encontrada.' })
+    }
+
+    const updated = await req.server.prisma.workoutSession.update({
+      where: { id },
+      data:  {
+        ...(parsed.data.caption  !== undefined && { caption:  parsed.data.caption }),
+        ...(parsed.data.notes    !== undefined && { notes:    parsed.data.notes }),
+        ...(parsed.data.location !== undefined && { location: parsed.data.location }),
+      },
+      include: { workout: { select: { id: true, name: true } } },
+    })
+
+    return reply.status(200).send(updated)
+  })
+
+  // ─── DELETE /sessions/:id ── Excluir sessão
+  app.delete('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { id } = req.params as { id: string }
+
+    const session = await req.server.prisma.workoutSession.findUnique({ where: { id } })
+    if (!session || session.studentId !== req.user.sub) {
+      return reply.status(404).send({ message: 'Sessão não encontrada.' })
+    }
+
+    // Remove fotos do servidor ao excluir
+    removeFile(session.photoStart)
+    removeFile(session.photoEnd)
+
+    await req.server.prisma.workoutSession.delete({ where: { id } })
+
+    return reply.status(204).send()
   })
 }
