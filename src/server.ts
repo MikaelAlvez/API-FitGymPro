@@ -1,18 +1,18 @@
 import 'dotenv/config'
-import Fastify         from 'fastify'
-import path            from 'path'
+import Fastify      from 'fastify'
+import path         from 'path'
+import fastifyStatic from '@fastify/static'
+
 import prismaPlugin    from './plugins/prisma'
 import jwtPlugin       from './plugins/jwt'
 import multipartPlugin from './plugins/multipart'
+
 import { authRoutes }            from './modules/auth/auth.routes'
 import { uploadRoutes }          from './modules/upload/upload.routes'
 import { userRoutes }            from './modules/user/user.routes'
 import { personalRequestRoutes } from './modules/personal-request/personal-request.routes'
-import { workoutRoutes } from './modules/workout/workout.routes'
-import { sessionRoutes } from './modules/workout/session.routes'
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const staticFiles = require('@fastify/static')
+import { workoutRoutes }         from './modules/workout/workout.routes'
+import { sessionRoutes }         from './modules/workout/session.routes'
 
 const app = Fastify({ logger: true })
 
@@ -21,9 +21,11 @@ app.register(prismaPlugin)
 app.register(jwtPlugin)
 app.register(multipartPlugin)
 
-app.register(staticFiles, {
-  root:   path.join(__dirname, '..', 'src', 'uploads'),
-  prefix: '/uploads/',
+// Static files — apenas uma vez, usando process.cwd()
+app.register(fastifyStatic, {
+  root:       path.join(process.cwd(), 'src', 'uploads'),
+  prefix:     '/uploads/',
+  decorateReply: false,
 })
 
 // ─── Rotas ───────────────────────────────────
@@ -32,13 +34,11 @@ app.register(uploadRoutes)
 app.register(userRoutes)
 app.register(personalRequestRoutes)
 app.register(workoutRoutes)
-
 app.register(sessionRoutes)
 
 app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
-
-// ─── Start ───────────────────────────────────
+// ─── Start ────────────────────────────────────
 const start = async () => {
   try {
     const port = Number(process.env.PORT) || 3333
