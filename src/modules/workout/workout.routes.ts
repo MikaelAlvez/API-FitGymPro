@@ -10,6 +10,8 @@ const exerciseSchema = z.object({
   groupId:    z.string().optional(),
   groupLabel: z.string().optional(),
   duration:   z.string().optional(),
+  load:       z.string().optional(),
+  restTime:   z.string().optional(),
 })
 
 const createWorkoutSchema = z.object({
@@ -27,7 +29,6 @@ const updateWorkoutSchema = z.object({
   exercises: z.array(exerciseSchema).optional(),
 })
 
-// ✅ Para nested create (sem workoutId)
 const mapExercisesCreate = (exercises: z.infer<typeof exerciseSchema>[]) =>
   exercises.map((e, i) => ({
     name:       e.name,
@@ -38,9 +39,10 @@ const mapExercisesCreate = (exercises: z.infer<typeof exerciseSchema>[]) =>
     groupId:    e.groupId    ?? null,
     groupLabel: e.groupLabel ?? null,
     duration:   e.duration   ?? null,
+    load:       e.load       ?? null, 
+    restTime:   e.restTime   ?? null, 
   }))
 
-// ✅ Para createMany (workoutId obrigatório)
 const mapExercisesCreateMany = (exercises: z.infer<typeof exerciseSchema>[], workoutId: string) =>
   exercises.map((e, i) => ({
     workoutId,
@@ -52,6 +54,8 @@ const mapExercisesCreateMany = (exercises: z.infer<typeof exerciseSchema>[], wor
     groupId:    e.groupId    ?? null,
     groupLabel: e.groupLabel ?? null,
     duration:   e.duration   ?? null,
+    load:       e.load       ?? null,
+    restTime:   e.restTime   ?? null, 
   }))
 
 // ─── GET /workouts/student/:studentId ────────

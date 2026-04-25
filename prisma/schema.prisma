@@ -143,10 +143,12 @@ model Exercise {
   sets       String
   reps       String
   order      Int     @default(0)
-  groupId    String? 
-  groupLabel String? 
-  type       String  @default("exercise") 
-  duration   String? 
+  type       String  @default("exercise")
+  groupId    String?
+  groupLabel String?
+  duration   String?
+  load       String? 
+  restTime   String? 
   workoutId  String
   workout    Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
