@@ -14,18 +14,19 @@ const checkinSchema = z.object({
 const checkoutSchema = z.object({
   caption:  z.string().min(1, 'Legenda obrigatória'),
   notes:    z.string().optional(),
+  notesEnd: z.string().optional(), 
   location: z.string().optional(),
   photoEnd: z.string().optional(),
 })
 
-// Schema para edição de sessão já finalizada
 const updateSessionSchema = z.object({
-  caption:  z.string().min(1).optional(),
-  notes:    z.string().optional().nullable(),
-  location: z.string().optional().nullable(),
+  caption:    z.string().min(1).optional(),
+  captionEnd: z.string().optional().nullable(),
+  notes:      z.string().optional().nullable(),
+  notesEnd:   z.string().optional().nullable(), 
+  location:   z.string().optional().nullable(),
 })
 
-// Remove arquivo de upload se existir
 const removeFile = (urlPath: string | null | undefined) => {
   if (!urlPath) return
   const filepath = path.join(process.cwd(), 'src', urlPath.replace(/^\//, ''))
@@ -90,10 +91,11 @@ export async function sessionRoutes(app: FastifyInstance) {
       data:  {
         finishedAt,
         duration,
-        caption:  parsed.data.caption,
-        notes:    parsed.data.notes,
-        location: parsed.data.location,
-        photoEnd: parsed.data.photoEnd,
+        captionEnd: parsed.data.caption,          
+        notes:      parsed.data.notes,
+        notesEnd:   parsed.data.notesEnd,         
+        location:   parsed.data.location,
+        photoEnd:   parsed.data.photoEnd,
       },
     })
 
@@ -130,7 +132,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     return reply.status(200).send(sessions)
   })
 
-  // ─── GET /sessions/:id/exercises-done ────────
+  // ─── GET /sessions/:id/exercises-done ────
   app.get('/sessions/:id/exercises-done', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
       return reply.status(403).send({ message: 'Acesso negado.' })
@@ -144,7 +146,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     }
 
     const done = await req.server.prisma.sessionExerciseDone.findMany({
-      where: { sessionId: id },
+      where:  { sessionId: id },
       select: { exerciseId: true },
     })
 
@@ -169,13 +171,11 @@ export async function sessionRoutes(app: FastifyInstance) {
     })
 
     if (existing) {
-      // já marcado — desmarca
       await req.server.prisma.sessionExerciseDone.delete({
         where: { sessionId_exerciseId: { sessionId: id, exerciseId } },
       })
       return reply.status(200).send({ done: false })
     } else {
-      // não marcado — marca
       await req.server.prisma.sessionExerciseDone.create({
         data: { sessionId: id, exerciseId },
       })
@@ -183,7 +183,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     }
   })
 
-    // ─── GET /sessions/today-done/:workoutId ─────
+  // ─── GET /sessions/today-done/:workoutId ─
   app.get('/sessions/today-done/:workoutId', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
       return reply.status(403).send({ message: 'Acesso negado.' })
@@ -191,7 +191,6 @@ export async function sessionRoutes(app: FastifyInstance) {
 
     const { workoutId } = req.params as { workoutId: string }
 
-    // Busca a sessão mais recente do dia para este treino
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -210,7 +209,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     return reply.status(200).send(session.exercisesDone.map(e => e.exerciseId))
   })
 
-  // ─── PUT /sessions/:id ── Editar sessão ───
+  // ─── PUT /sessions/:id ── Editar sessão ──
   app.put('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
       return reply.status(403).send({ message: 'Acesso negado.' })
@@ -230,9 +229,11 @@ export async function sessionRoutes(app: FastifyInstance) {
     const updated = await req.server.prisma.workoutSession.update({
       where: { id },
       data:  {
-        ...(parsed.data.caption  !== undefined && { caption:  parsed.data.caption }),
-        ...(parsed.data.notes    !== undefined && { notes:    parsed.data.notes }),
-        ...(parsed.data.location !== undefined && { location: parsed.data.location }),
+        ...(parsed.data.caption    !== undefined && { caption:    parsed.data.caption }),
+        ...(parsed.data.captionEnd !== undefined && { captionEnd: parsed.data.captionEnd }),
+        ...(parsed.data.notes      !== undefined && { notes:      parsed.data.notes }),
+        ...(parsed.data.notesEnd   !== undefined && { notesEnd:   parsed.data.notesEnd }),
+        ...(parsed.data.location   !== undefined && { location:   parsed.data.location }),
       },
       include: { workout: { select: { id: true, name: true } } },
     })
@@ -240,7 +241,7 @@ export async function sessionRoutes(app: FastifyInstance) {
     return reply.status(200).send(updated)
   })
 
-  // ─── DELETE /sessions/:id ── Excluir sessão
+  // ─── DELETE /sessions/:id ─────────────────
   app.delete('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
       return reply.status(403).send({ message: 'Acesso negado.' })
@@ -253,7 +254,6 @@ export async function sessionRoutes(app: FastifyInstance) {
       return reply.status(404).send({ message: 'Sessão não encontrada.' })
     }
 
-    // Remove fotos do servidor ao excluir
     removeFile(session.photoStart)
     removeFile(session.photoEnd)
 

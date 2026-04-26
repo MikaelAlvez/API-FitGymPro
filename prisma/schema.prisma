@@ -162,26 +162,26 @@ model WorkoutSession {
   finishedAt DateTime?
   duration   Int?
   caption    String
+  captionEnd String?   
   notes      String?
+  notesEnd   String?   
   location   String?
   photoStart String?
   photoEnd   String?
 
-  workout      Workout                @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  student      User                   @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
-  // exercícios concluídos nesta sessão
+  workout       Workout               @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  student       User                  @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
   exercisesDone SessionExerciseDone[]
 
   @@map("workout_sessions")
 }
 
-// exercícios marcados como concluídos em uma sessão
 model SessionExerciseDone {
   id         String @id @default(uuid())
   sessionId  String
   exerciseId String
 
-  session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, exerciseId])
   @@map("session_exercises_done")
