@@ -183,6 +183,33 @@ export async function sessionRoutes(app: FastifyInstance) {
     }
   })
 
+    // ─── GET /sessions/today-done/:workoutId ─────
+  app.get('/sessions/today-done/:workoutId', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { workoutId } = req.params as { workoutId: string }
+
+    // Busca a sessão mais recente do dia para este treino
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const session = await req.server.prisma.workoutSession.findFirst({
+      where: {
+        studentId: req.user.sub,
+        workoutId,
+        startedAt: { gte: today },
+      },
+      orderBy: { startedAt: 'desc' },
+      include: { exercisesDone: { select: { exerciseId: true } } },
+    })
+
+    if (!session) return reply.status(200).send([])
+
+    return reply.status(200).send(session.exercisesDone.map(e => e.exerciseId))
+  })
+
   // ─── PUT /sessions/:id ── Editar sessão ───
   app.put('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
