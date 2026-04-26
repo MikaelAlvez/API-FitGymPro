@@ -130,6 +130,59 @@ export async function sessionRoutes(app: FastifyInstance) {
     return reply.status(200).send(sessions)
   })
 
+  // ─── GET /sessions/:id/exercises-done ────────
+  app.get('/sessions/:id/exercises-done', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { id } = req.params as { id: string }
+
+    const session = await req.server.prisma.workoutSession.findUnique({ where: { id } })
+    if (!session || session.studentId !== req.user.sub) {
+      return reply.status(404).send({ message: 'Sessão não encontrada.' })
+    }
+
+    const done = await req.server.prisma.sessionExerciseDone.findMany({
+      where: { sessionId: id },
+      select: { exerciseId: true },
+    })
+
+    return reply.status(200).send(done.map(d => d.exerciseId))
+  })
+
+  // ─── POST /sessions/:id/exercises-done/:exerciseId ── toggle
+  app.post('/sessions/:id/exercises-done/:exerciseId', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'STUDENT') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+
+    const { id, exerciseId } = req.params as { id: string; exerciseId: string }
+
+    const session = await req.server.prisma.workoutSession.findUnique({ where: { id } })
+    if (!session || session.studentId !== req.user.sub) {
+      return reply.status(404).send({ message: 'Sessão não encontrada.' })
+    }
+
+    const existing = await req.server.prisma.sessionExerciseDone.findUnique({
+      where: { sessionId_exerciseId: { sessionId: id, exerciseId } },
+    })
+
+    if (existing) {
+      // já marcado — desmarca
+      await req.server.prisma.sessionExerciseDone.delete({
+        where: { sessionId_exerciseId: { sessionId: id, exerciseId } },
+      })
+      return reply.status(200).send({ done: false })
+    } else {
+      // não marcado — marca
+      await req.server.prisma.sessionExerciseDone.create({
+        data: { sessionId: id, exerciseId },
+      })
+      return reply.status(200).send({ done: true })
+    }
+  })
+
   // ─── PUT /sessions/:id ── Editar sessão ───
   app.put('/sessions/:id', { preHandler: [app.authenticate] }, async (req, reply) => {
     if (req.user.role !== 'STUDENT') {
