@@ -46,6 +46,7 @@ async function updateProfileController(req: FastifyRequest, reply: FastifyReply)
       phone:        true,
       role:         true,
       avatar:       true,
+      userCode:     true, 
       cep:          true,
       street:       true,
       number:       true,
@@ -122,101 +123,104 @@ async function updateMetricsController(req: FastifyRequest, reply: FastifyReply)
 }
 
 export async function userRoutes(app: FastifyInstance) {
-  app.put(
-    '/user/profile',
-    { preHandler: [app.authenticate] },
-    updateProfileController,
-  )
+  app.put('/user/profile', { preHandler: [app.authenticate] }, updateProfileController)
+  app.put('/user/metrics', { preHandler: [app.authenticate] }, updateMetricsController)
 
-  app.put(
-    '/user/metrics',
-    { preHandler: [app.authenticate] },
-    updateMetricsController,
-  )
+  // Busca usuário por código
+  app.get('/user/search', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const { code } = req.query as { code?: string }
 
-  // Retorna todos os alunos (ativos e inativos) com campo active
-  app.get(
-    '/user/my-students',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      if (req.user.role !== 'PERSONAL') {
-        return reply.status(403).send({ message: 'Acesso negado.' })
-      }
-      const students = await req.server.prisma.user.findMany({
-        where:   { personalId: req.user.sub },
-        select:  {
-          id:     true,
-          name:   true,
-          avatar: true,
-          active: true, // ✅ incluído
-          city:   true,
-          state:  true,
-          studentProfile: {
-            select: {
-              goal:       true,
-              experience: true,
-              weight:     true,
-              height:     true,
-            },
+    if (!code?.trim()) {
+      return reply.status(400).send({ message: 'Informe o código de usuário.' })
+    }
+
+    const user = await req.server.prisma.user.findUnique({
+      where:  { userCode: code.trim().toUpperCase() },
+      select: {
+        id:       true,
+        name:     true,
+        email:    true,
+        role:     true,
+        avatar:   true,
+        userCode: true,
+        city:     true,
+        state:    true,
+        personalProfile: {
+          select: { cref: true, classFormat: true },
+        },
+        studentProfile: {
+          select: { goal: true, experience: true },
+        },
+      },
+    })
+
+    if (!user) {
+      return reply.status(404).send({ message: 'Usuário não encontrado.' })
+    }
+
+    return reply.status(200).send(user)
+  })
+
+  // Retorna todos os alunos do personal
+  app.get('/user/my-students', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'PERSONAL') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+    const students = await req.server.prisma.user.findMany({
+      where:   { personalId: req.user.sub },
+      select:  {
+        id:       true,
+        name:     true,
+        avatar:   true,
+        active:   true,
+        userCode: true, 
+        city:     true,
+        state:    true,
+        studentProfile: {
+          select: {
+            goal:       true,
+            experience: true,
+            weight:     true,
+            height:     true,
           },
         },
-        orderBy: { name: 'asc' },
-      })
-      return reply.status(200).send(students)
-    },
-  )
+      },
+      orderBy: { name: 'asc' },
+    })
+    return reply.status(200).send(students)
+  })
 
   // Inativar aluno
-  app.put(
-    '/user/student/:studentId/deactivate',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      if (req.user.role !== 'PERSONAL') {
-        return reply.status(403).send({ message: 'Acesso negado.' })
-      }
-      const { studentId } = req.params as { studentId: string }
-      const personalId    = req.user.sub
+  app.put('/user/student/:studentId/deactivate', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'PERSONAL') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+    const { studentId } = req.params as { studentId: string }
+    const personalId    = req.user.sub
 
-      const student = await req.server.prisma.user.findUnique({
-        where: { id: studentId },
-      })
-      if (!student || student.personalId !== personalId) {
-        return reply.status(404).send({ message: 'Aluno não encontrado ou não vinculado a você.' })
-      }
+    const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
+    if (!student || student.personalId !== personalId) {
+      return reply.status(404).send({ message: 'Aluno não encontrado ou não vinculado a você.' })
+    }
 
-      await req.server.prisma.user.update({
-        where: { id: studentId },
-        data:  { active: false },
-      })
-
-      return reply.status(200).send({ message: 'Aluno inativado com sucesso.' })
-    },
-  )
+    await req.server.prisma.user.update({ where: { id: studentId }, data: { active: false } })
+    return reply.status(200).send({ message: 'Aluno inativado com sucesso.' })
+  })
 
   // Reativar aluno
-  app.put(
-    '/user/student/:studentId/activate',
-    { preHandler: [app.authenticate] },
-    async (req, reply) => {
-      if (req.user.role !== 'PERSONAL') {
-        return reply.status(403).send({ message: 'Acesso negado.' })
-      }
-      const { studentId } = req.params as { studentId: string }
-      const personalId    = req.user.sub
+  app.put('/user/student/:studentId/activate', { preHandler: [app.authenticate] }, async (req, reply) => {
+    if (req.user.role !== 'PERSONAL') {
+      return reply.status(403).send({ message: 'Acesso negado.' })
+    }
+    const { studentId } = req.params as { studentId: string }
+    const personalId    = req.user.sub
 
-      const student = await req.server.prisma.user.findUnique({
-        where: { id: studentId },
-      })
-      if (!student || student.personalId !== personalId) {
-        return reply.status(404).send({ message: 'Aluno não encontrado ou não vinculado a você.' })
-      }
+    const student = await req.server.prisma.user.findUnique({ where: { id: studentId } })
+    if (!student || student.personalId !== personalId) {
+      return reply.status(404).send({ message: 'Aluno não encontrado ou não vinculado a você.' })
+    }
 
-      await req.server.prisma.user.update({
-        where: { id: studentId },
-        data:  { active: true },
-      })
-
-      return reply.status(200).send({ message: 'Aluno reativado com sucesso.' })
-    },
-  )
+    await req.server.prisma.user.update({ where: { id: studentId }, data: { active: true } })
+    return reply.status(200).send({ message: 'Aluno reativado com sucesso.' })
+  })
 }

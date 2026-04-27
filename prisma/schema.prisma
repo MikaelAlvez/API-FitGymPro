@@ -28,6 +28,7 @@ model User {
   role      Role
   avatar    String?
   active    Boolean  @default(true)
+  userCode  String?   @unique 
   cep          String?
   street       String?
   number       String?

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import bcrypt from 'bcryptjs'
 import type { RegisterStudentInput } from './register.schema'
+import { generateUserCode } from '../../utils/generateUserCode'
 
 export async function registerStudentService(
   app: FastifyInstance,
@@ -28,29 +29,27 @@ export async function registerStudentService(
 
   // Valida se o personal existe (quando informado)
   if (personalId) {
-    const personal = await app.prisma.user.findUnique({
-      where: { id: personalId },
-    })
+    const personal = await app.prisma.user.findUnique({ where: { id: personalId } })
     if (!personal || personal.role !== 'PERSONAL') {
       throw { statusCode: 404, message: 'Personal trainer não encontrado.' }
     }
   }
 
-  // Hash da senha
   const hashedPassword = await bcrypt.hash(password, 10)
+  const cpfDigits      = cpf.replace(/\D/g, '')
 
-  // Normaliza CPF — salva sempre sem máscara
-  const cpfDigits = cpf.replace(/\D/g, '')
+  // Gera código único para o aluno
+  const userCode = await generateUserCode(app.prisma as any, 'STUDENT')
 
-  // Cria usuário + perfil em uma transação
   const user = await app.prisma.user.create({
     data: {
       name,
       email,
-      cpf: cpfDigits,
+      cpf:        cpfDigits,
       phone,
       password:   hashedPassword,
       role:       'STUDENT',
+      userCode,                    
       personalId: personalId ?? null,
       cep,
       street,
@@ -60,8 +59,8 @@ export async function registerStudentService(
       state,
       studentProfile: {
         create: {
-          sex,        
-          birthDate, 
+          sex,
+          birthDate,
           weight,
           height,
           goal,
@@ -80,6 +79,7 @@ export async function registerStudentService(
       phone:        true,
       role:         true,
       avatar:       true,
+      userCode:     true,         
       cep:          true,
       street:       true,
       number:       true,
@@ -99,7 +99,6 @@ export async function registerStudentService(
     },
   })
 
-  // Gera tokens
   const accessToken = app.jwt.sign({
     sub:   user.id,
     email: user.email,
@@ -107,8 +106,8 @@ export async function registerStudentService(
   })
 
   const { randomUUID } = await import('crypto')
-  const refreshToken = randomUUID()
-  const expiresAt    = new Date()
+  const refreshToken   = randomUUID()
+  const expiresAt      = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30)
 
   await app.prisma.refreshToken.create({

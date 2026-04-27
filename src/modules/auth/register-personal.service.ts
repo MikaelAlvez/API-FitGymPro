@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'crypto'
 import type { RegisterPersonalInput } from './register.schema'
+import { generateUserCode } from '../../utils/generateUserCode'
 
 export async function registerPersonalService(
   app: FastifyInstance,
@@ -15,41 +16,39 @@ export async function registerPersonalService(
     classFormat, availableDays,
   } = input
 
-  //Verifica e-mail duplicado
+  // Verifica e-mail duplicado
   const existing = await app.prisma.user.findUnique({ where: { email } })
   if (existing) {
     throw { statusCode: 409, message: 'E-mail já cadastrado.' }
   }
 
-  //Verifica CPF duplicado
+  // Verifica CPF duplicado
   const existingCpf = await app.prisma.user.findUnique({ where: { cpf } })
   if (existingCpf) {
     throw { statusCode: 409, message: 'CPF já cadastrado.' }
   }
 
-  //Verifica CREF duplicado
-  const existingCref = await app.prisma.personalProfile.findFirst({
-    where: { cref },
-  })
+  // Verifica CREF duplicado
+  const existingCref = await app.prisma.personalProfile.findFirst({ where: { cref } })
   if (existingCref) {
     throw { statusCode: 409, message: 'CREF já cadastrado.' }
   }
 
-  //Hash da senha
   const hashedPassword = await bcrypt.hash(password, 10)
+  const cpfDigits      = cpf.replace(/\D/g, '')
 
-  //Normaliza CPF — salva sempre sem máscara
-  const cpfDigits = cpf.replace(/\D/g, '')
+  // Gera código único para o personal
+  const userCode = await generateUserCode(app.prisma as any, 'PERSONAL')
 
-  //Cria usuário + perfil em uma transação
   const user = await app.prisma.user.create({
     data: {
       name,
       email,
-      cpf: cpfDigits,
+      cpf:      cpfDigits,
       phone,
       password: hashedPassword,
       role:     'PERSONAL',
+      userCode,               
       cep,
       street,
       number,
@@ -72,11 +71,12 @@ export async function registerPersonalService(
       },
     },
     select: {
-      id:        true,
-      name:      true,
-      email:     true,
-      phone:     true,
-      role:      true,
+      id:       true,
+      name:     true,
+      email:    true,
+      phone:    true,
+      role:     true,
+      userCode: true,         
       createdAt: true,
       personalProfile: {
         select: {
@@ -89,7 +89,6 @@ export async function registerPersonalService(
     },
   })
 
-  //Gera tokens
   const accessToken = app.jwt.sign({
     sub:   user.id,
     email: user.email,
