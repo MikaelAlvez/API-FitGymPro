@@ -13,7 +13,8 @@ import { userRoutes }            from './modules/user/user.routes'
 import { personalRequestRoutes } from './modules/personal-request/personal-request.routes'
 import { workoutRoutes }         from './modules/workout/workout.routes'
 import { sessionRoutes }         from './modules/workout/session.routes'
-import { statsRoutes } from './modules/workout/stats.routes'
+import { statsRoutes }  from './modules/workout/stats.routes'
+import { friendRoutes } from './modules/friend/friend.routes'
 
 const app = Fastify({ logger: true })
 
@@ -37,6 +38,7 @@ app.register(personalRequestRoutes)
 app.register(workoutRoutes)
 app.register(sessionRoutes)
 app.register(statsRoutes)
+app.register(friendRoutes)
 
 app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 

@@ -52,6 +52,9 @@ model User {
 
   studentSessions WorkoutSession[] @relation("StudentSessions")
 
+  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+
   @@map("users")
 }
 
@@ -186,4 +189,19 @@ model SessionExerciseDone {
 
   @@unique([sessionId, exerciseId])
   @@map("session_exercises_done")
+}
+
+model FriendRequest {
+  id         String        @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  sender   User @relation("SentFriendRequests",     fields: [senderId],   references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
 }
