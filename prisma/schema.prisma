@@ -159,6 +159,8 @@ model Exercise {
   duration   String?
   load       String?
   restTime   String?
+  isDrop     Boolean @default(false)  
+  dropSets   String? 
   workoutId  String
   workout    Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 

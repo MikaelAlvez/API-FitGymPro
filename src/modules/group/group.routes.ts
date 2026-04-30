@@ -314,4 +314,52 @@ export async function groupRoutes(app: FastifyInstance) {
     await req.server.prisma.challengeCheckin.delete({ where: { id: checkinId } })
     return reply.status(200).send({ message: 'Checkin removido.' })
   })
+
+  // ─── GET /groups/active-challenges ── Grupos com desafios ativos do usuário
+  app.get('/groups/active-challenges', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const userId = req.user.sub
+    const now    = new Date()
+
+    const memberships = await req.server.prisma.groupMember.findMany({
+      where: { userId },
+      include: {
+        group: {
+          include: {
+            challenges: {
+              where: {
+                startDate: { lte: now },
+                endDate:   { gte: now },
+              },
+              include: {
+                checkins: {
+                  where:  { userId },
+                  select: { id: true },
+                },
+                _count: { select: { checkins: true } },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Filtra só grupos que têm ao menos 1 desafio ativo
+    const result = memberships
+      .filter(m => m.group.challenges.length > 0)
+      .map(m => ({
+        groupId:   m.group.id,
+        groupName: m.group.name,
+        groupCode: m.group.code,
+        challenges: m.group.challenges.map(c => ({
+          id:          c.id,
+          title:       c.title,
+          goal:        c.goal,
+          myCheckins:  c.checkins.length,
+          totalCheckins: c._count.checkins,
+          endDate:     c.endDate,
+        })),
+      }))
+
+    return reply.status(200).send(result)
+  })
 }
