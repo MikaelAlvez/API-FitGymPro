@@ -6,8 +6,7 @@ export async function groupRoutes(app: FastifyInstance) {
   // ─── POST /groups ── Criar grupo
   app.post('/groups', { preHandler: [app.authenticate] }, async (req, reply) => {
     const userId = req.user.sub
-    const { name, description } = req.body as { name: string; description?: string }
-
+    const { name, description, avatar } = req.body as { name: string; description?: string; avatar?: string }
     if (!name?.trim()) return reply.status(400).send({ message: 'Nome é obrigatório.' })
 
     const code  = await generateGroupCode(app.prisma as any)
@@ -15,6 +14,7 @@ export async function groupRoutes(app: FastifyInstance) {
       data: {
         name:        name.trim(),
         description: description?.trim(),
+        avatar:      avatar ?? null,   
         code,
         creatorId: userId,
         members: {
