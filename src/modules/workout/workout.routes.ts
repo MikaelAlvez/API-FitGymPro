@@ -12,6 +12,8 @@ const exerciseSchema = z.object({
   duration:   z.string().optional(),
   load:       z.string().optional(),
   restTime:   z.string().optional(),
+  isDrop:     z.boolean().optional(),  
+  dropSets:   z.string().optional(),    
 })
 
 const createWorkoutSchema = z.object({
@@ -39,8 +41,10 @@ const mapExercisesCreate = (exercises: z.infer<typeof exerciseSchema>[]) =>
     groupId:    e.groupId    ?? null,
     groupLabel: e.groupLabel ?? null,
     duration:   e.duration   ?? null,
-    load:       e.load       ?? null, 
-    restTime:   e.restTime   ?? null, 
+    load:       e.load       ?? null,
+    restTime:   e.restTime   ?? null,
+    isDrop:     e.isDrop     ?? false,  
+    dropSets:   e.dropSets   ?? null,   
   }))
 
 const mapExercisesCreateMany = (exercises: z.infer<typeof exerciseSchema>[], workoutId: string) =>
@@ -55,7 +59,9 @@ const mapExercisesCreateMany = (exercises: z.infer<typeof exerciseSchema>[], wor
     groupLabel: e.groupLabel ?? null,
     duration:   e.duration   ?? null,
     load:       e.load       ?? null,
-    restTime:   e.restTime   ?? null, 
+    restTime:   e.restTime   ?? null,
+    isDrop:     e.isDrop     ?? false,  
+    dropSets:   e.dropSets   ?? null,   
   }))
 
 // ─── GET /workouts/student/:studentId ────────
