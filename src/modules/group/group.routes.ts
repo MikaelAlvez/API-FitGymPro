@@ -14,7 +14,7 @@ export async function groupRoutes(app: FastifyInstance) {
       data: {
         name:        name.trim(),
         description: description?.trim(),
-        avatar:      avatar ?? null,   
+         avatar:      avatar ?? null,   
         code,
         creatorId: userId,
         members: {
@@ -185,15 +185,33 @@ export async function groupRoutes(app: FastifyInstance) {
   app.post('/groups/:groupId/challenges', { preHandler: [app.authenticate] }, async (req, reply) => {
     const userId      = req.user.sub
     const { groupId } = req.params as { groupId: string }
-    const { title, description, goal, startDate, endDate } =
-      req.body as { title: string; description?: string; goal: number; startDate: string; endDate: string }
+    const {
+      title, description, goal, startDate, endDate,
+      type,
+      weeklyCheckinLimit,
+      minSessionMinutes, maxSessionMinutes,
+      scoreStrength, scoreCardio, scoreSports,
+    } = req.body as {
+      title:       string
+      description?: string
+      goal:        number
+      startDate:   string
+      endDate:     string
+      type?:       'CHECKIN_COUNT' | 'SCORE' | 'TOTAL_TIME'
+      weeklyCheckinLimit?:  number
+      minSessionMinutes?:   number
+      maxSessionMinutes?:   number
+      scoreStrength?: number
+      scoreCardio?:   number
+      scoreSports?:   number
+    }
 
     const group = await req.server.prisma.group.findUnique({ where: { id: groupId } })
     if (!group || group.creatorId !== userId)
       return reply.status(403).send({ message: 'Apenas o criador pode criar desafios.' })
 
     if (!title?.trim()) return reply.status(400).send({ message: 'Título é obrigatório.' })
-    if (!goal || goal < 1) return reply.status(400).send({ message: 'Meta deve ser ao menos 1 treino.' })
+    if (!goal || goal < 1) return reply.status(400).send({ message: 'Meta deve ser ao menos 1.' })
     if (!startDate || !endDate) return reply.status(400).send({ message: 'Datas são obrigatórias.' })
     if (new Date(endDate) <= new Date(startDate))
       return reply.status(400).send({ message: 'Data de fim deve ser após a data de início.' })
@@ -201,11 +219,18 @@ export async function groupRoutes(app: FastifyInstance) {
     const challenge = await req.server.prisma.groupChallenge.create({
       data: {
         groupId,
-        title:       title.trim(),
-        description: description?.trim(),
+        title:              title.trim(),
+        description:        description?.trim(),
         goal,
-        startDate:   new Date(startDate),
-        endDate:     new Date(endDate),
+        startDate:          new Date(startDate),
+        endDate:            new Date(endDate),
+        type:               type ?? 'CHECKIN_COUNT',
+        weeklyCheckinLimit: weeklyCheckinLimit ?? null,
+        minSessionMinutes:  minSessionMinutes ?? null,
+        maxSessionMinutes:  maxSessionMinutes ?? null,
+        scoreStrength:      scoreStrength ?? 3,
+        scoreCardio:        scoreCardio   ?? 2,
+        scoreSports:        scoreSports   ?? 1,
       },
       include: { _count: { select: { checkins: true } } },
     })
@@ -233,51 +258,52 @@ export async function groupRoutes(app: FastifyInstance) {
     return reply.status(200).send(challenges)
   })
 
-  // ─── GET /groups/:groupId/challenges/:challengeId/ranking ── Ranking do desafio
+  // ─── GET /groups/:groupId/challenges/:challengeId/ranking
   app.get('/groups/:groupId/challenges/:challengeId/ranking', { preHandler: [app.authenticate] }, async (req, reply) => {
     const { groupId, challengeId } = req.params as { groupId: string; challengeId: string }
 
-    const challenge = await req.server.prisma.groupChallenge.findUnique({
-      where: { id: challengeId },
-    })
+    const challenge = await req.server.prisma.groupChallenge.findUnique({ where: { id: challengeId } })
     if (!challenge || challenge.groupId !== groupId)
       return reply.status(404).send({ message: 'Desafio não encontrado.' })
 
-    // Busca todos os membros do grupo
     const members = await req.server.prisma.groupMember.findMany({
       where:   { groupId },
       include: { user: { select: { id: true, name: true, avatar: true, userCode: true } } },
     })
 
-    // Busca checkins do desafio agrupados por usuário
     const checkins = await req.server.prisma.challengeCheckin.findMany({
       where: { challengeId },
     })
 
-    const countByUser = checkins.reduce<Record<string, number>>((acc, c) => {
-      acc[c.userId] = (acc[c.userId] ?? 0) + 1
-      return acc
-    }, {})
-
-    // Monta ranking
     const ranking = members
-      .map(m => ({
-        user:     m.user,
-        checkins: countByUser[m.userId] ?? 0,
-        done:     (countByUser[m.userId] ?? 0) >= challenge.goal,
-      }))
-      .sort((a, b) => b.checkins - a.checkins)
+      .map(m => {
+        const userCheckins = checkins.filter(c => c.userId === m.userId)
+        let score = 0
+        if (challenge.type === 'CHECKIN_COUNT') score = userCheckins.length
+        else if (challenge.type === 'SCORE')    score = userCheckins.reduce((s, c) => s + c.points, 0)
+        else if (challenge.type === 'TOTAL_TIME') score = userCheckins.reduce((s, c) => s + c.minutes, 0)
+        return {
+          user:     m.user,
+          checkins: userCheckins.length,
+          score,
+          done: score >= challenge.goal,
+        }
+      })
+      .sort((a, b) => b.score - a.score)
 
     return reply.status(200).send({ challenge, ranking })
   })
 
   // ─── POST /groups/:groupId/challenges/:challengeId/checkin ── Fazer checkin
   app.post('/groups/:groupId/challenges/:challengeId/checkin', { preHandler: [app.authenticate] }, async (req, reply) => {
-    const userId                  = req.user.sub
+    const userId                   = req.user.sub
     const { groupId, challengeId } = req.params as { groupId: string; challengeId: string }
-    const { sessionId, note }      = req.body as { sessionId?: string; note?: string }
+    const { sessionId, note, workoutType } = req.body as {
+      sessionId?:   string
+      note?:        string
+      workoutType?: 'strength' | 'cardio' | 'sports'
+    }
 
-    // Verifica se é membro
     const membership = await req.server.prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },
     })
@@ -287,19 +313,89 @@ export async function groupRoutes(app: FastifyInstance) {
     if (!challenge || challenge.groupId !== groupId)
       return reply.status(404).send({ message: 'Desafio não encontrado.' })
 
-    // Verifica se desafio está ativo
     const now = new Date()
     if (now < challenge.startDate) return reply.status(400).send({ message: 'O desafio ainda não começou.' })
     if (now > challenge.endDate)   return reply.status(400).send({ message: 'O desafio já encerrou.' })
 
+    // ─── Busca duração da sessão se sessionId fornecido
+    let sessionMinutes = 0
+    if (sessionId) {
+      const session = await req.server.prisma.workoutSession.findUnique({ where: { id: sessionId } })
+      if (session?.duration) sessionMinutes = Math.floor(session.duration / 60)
+    }
+
+    // ─── Valida tempo mínimo/máximo
+    if (challenge.minSessionMinutes && sessionMinutes < challenge.minSessionMinutes) {
+      return reply.status(400).send({
+        message: `Treino muito curto. Mínimo: ${challenge.minSessionMinutes} min. Seu treino: ${sessionMinutes} min.`
+      })
+    }
+
+    // ─── Verifica limite semanal
+    let countedInWeeklyLimit = true
+    if (challenge.weeklyCheckinLimit) {
+      const weekStart = new Date(now)
+      weekStart.setDate(now.getDate() - now.getDay())
+      weekStart.setHours(0, 0, 0, 0)
+
+      const weekCheckins = await req.server.prisma.challengeCheckin.count({
+        where: {
+          challengeId,
+          userId,
+          countedInWeeklyLimit: true,
+          checkedAt: { gte: weekStart },
+        },
+      })
+      if (weekCheckins >= challenge.weeklyCheckinLimit) countedInWeeklyLimit = false
+    }
+
+    // ─── Calcula pontos (só se tipo SCORE e dentro do limite)
+    let points = 0
+    if (challenge.type === 'SCORE' && countedInWeeklyLimit) {
+      if (workoutType === 'strength') points = challenge.scoreStrength
+      else if (workoutType === 'cardio') points = challenge.scoreCardio
+      else if (workoutType === 'sports') points = challenge.scoreSports
+    }
+
+    // ─── Minutos para TOTAL_TIME (respeita maxSessionMinutes)
+    let effectiveMinutes = sessionMinutes
+    if (challenge.type === 'TOTAL_TIME' && countedInWeeklyLimit) {
+      if (challenge.maxSessionMinutes && effectiveMinutes > challenge.maxSessionMinutes) {
+        effectiveMinutes = challenge.maxSessionMinutes
+      }
+    }
+
     const checkin = await req.server.prisma.challengeCheckin.create({
-      data: { challengeId, userId, sessionId: sessionId ?? null, note: note?.trim() ?? null },
+      data: {
+        challengeId,
+        userId,
+        sessionId:           sessionId ?? null,
+        note:                note?.trim() ?? null,
+        workoutType:         workoutType ?? null,
+        points,
+        minutes:             effectiveMinutes,
+        countedInWeeklyLimit,
+      },
     })
 
-    // Conta checkins do usuário neste desafio
-    const total = await req.server.prisma.challengeCheckin.count({ where: { challengeId, userId } })
+    // ─── Calcula total do usuário conforme tipo
+    const userCheckins = await req.server.prisma.challengeCheckin.findMany({
+      where: { challengeId, userId },
+    })
 
-    return reply.status(201).send({ checkin, total, goal: challenge.goal, completed: total >= challenge.goal })
+    let total = 0
+    if (challenge.type === 'CHECKIN_COUNT') total = userCheckins.length
+    else if (challenge.type === 'SCORE')    total = userCheckins.reduce((s, c) => s + c.points, 0)
+    else if (challenge.type === 'TOTAL_TIME') total = userCheckins.reduce((s, c) => s + c.minutes, 0)
+
+    return reply.status(201).send({
+      checkin,
+      total,
+      goal:      challenge.goal,
+      completed: total >= challenge.goal,
+      countedInWeeklyLimit,
+      weeklyLimitReached: !countedInWeeklyLimit,
+    })
   })
 
   // ─── DELETE /groups/:groupId/challenges/:challengeId/checkin/:checkinId ── Remover checkin
