@@ -1,7 +1,5 @@
 import 'dotenv/config'
 import Fastify      from 'fastify'
-import path         from 'path'
-import fastifyStatic from '@fastify/static'
 
 import prismaPlugin    from './plugins/prisma'
 import jwtPlugin       from './plugins/jwt'
@@ -23,13 +21,6 @@ const app = Fastify({ logger: true })
 app.register(prismaPlugin)
 app.register(jwtPlugin)
 app.register(multipartPlugin)
-
-// Static files — apenas uma vez, usando process.cwd()
-app.register(fastifyStatic, {
-  root:       path.join(process.cwd(), 'src', 'uploads'),
-  prefix:     '/uploads/',
-  decorateReply: false,
-})
 
 // ─── Rotas ───────────────────────────────────
 app.register(authRoutes,            { prefix: '/auth' })
